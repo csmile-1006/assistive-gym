@@ -18,12 +18,11 @@
       </geometry>
       <material name="white"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <origin rpy="1.57079632679 0 3.14159265359" xyz="0 0 0"/>
       <geometry>
         <mesh filename="wheelchair_permobil_reduced_compressed_vhacd.obj" scale="0.15 0.15 0.15"/>
       </geometry>
-    </collision>
+    </collision> -->
   </link>
 </robot>
-
