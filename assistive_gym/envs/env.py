@@ -30,12 +30,12 @@ class AssistiveEnv(gym.Env):
         task="",
         obs_robot_len=0,
         obs_human_len=0,
-        time_step=1 / 240,
+        time_step=1 / 100,
         frame_skip=5,
-        render=False,
+        render=True,
         gravity=-9.81,
         seed=1001,
-        record_video=True,
+        record_video=False,
     ):
         self.task = task
         self.time_step = time_step
@@ -428,6 +428,7 @@ class AssistiveEnv(gym.Env):
         dressing_forces=[[]],
         arm_manipulation_tool_forces_on_human=[0, 0],
         arm_manipulation_total_force_on_human=0,
+        verbose=False,
     ):
         # Slow end effector velocities
         reward_velocity = -end_effector_velocity
@@ -475,7 +476,7 @@ class AssistiveEnv(gym.Env):
         else:
             reward_arm_manipulation_tool_pressures = 0.0
 
-        return (
+        pref_score = (
             self.C_v * reward_velocity
             + self.C_f * reward_force_nontarget
             + self.C_hf * reward_high_target_forces
@@ -484,6 +485,19 @@ class AssistiveEnv(gym.Env):
             + self.C_d * reward_dressing_force
             + self.C_p * reward_arm_manipulation_tool_pressures
         )
+        if verbose:
+            info = {
+                "Reward/velocity": reward_velocity,
+                "Reward/force_nontarget": reward_force_nontarget,
+                "Reward/high_target_forces": reward_high_target_forces,
+                "Reward/food_hit_human": reward_food_hit_human,
+                "Reward/food_velocities": reward_food_velocities,
+                "Reward/dressing_force": reward_dressing_force,
+                "Reward/arm_manipulation_tool_pressures": reward_arm_manipulation_tool_pressures,
+            }
+            return pref_score, info
+        else:
+            return pref_score
 
     def init_robot_pose(
         self,

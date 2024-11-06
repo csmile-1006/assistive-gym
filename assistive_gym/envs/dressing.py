@@ -1,5 +1,4 @@
 import os
-import time
 
 import numpy as np
 import pybullet as p
@@ -86,8 +85,8 @@ class DressingEnv(AssistiveEnv):
         self.cloth_forces = np.array(forces_temp)
         contact_positions = np.array(contact_positions_temp)
         end_effector_velocity = np.linalg.norm(self.robot.get_velocity(self.robot.left_end_effector))
-        preferences_score = self.human_preferences(
-            end_effector_velocity=end_effector_velocity, dressing_forces=self.cloth_forces
+        preferences_score, pref_info = self.human_preferences(
+            end_effector_velocity=end_effector_velocity, dressing_forces=self.cloth_forces, verbose=True
         )
 
         reward_action = -np.linalg.norm(action)  # Penalize actions
@@ -122,6 +121,12 @@ class DressingEnv(AssistiveEnv):
             "obs_robot_len": self.obs_robot_len,
             "obs_human_len": self.obs_human_len,
         }
+        info.update({
+            "Reward/dressing": reward_dressing,
+            "Reward/action": reward_action,
+            "Reward/dressing_force": pref_info["Reward/dressing_force"],
+            "Reward/velocity": pref_info["Reward/velocity"],
+        })
         done = self.iteration >= 200
 
         if not self.human.controllable:
