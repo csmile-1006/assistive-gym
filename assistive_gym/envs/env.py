@@ -599,7 +599,7 @@ class AssistiveEnv(gym.Env):
                     "--background_color_red=0.8 --background_color_green=0.9 --background_color_blue=1.0 --width=%d"
                     " --height=%d"
                 )
-                % (self.width, self.height),
+                % (64, 64),
             )
             self.util = Util(self.id, self.np_random)
 
