@@ -52,7 +52,7 @@ def viewer(env_name):
             observation, reward, done, info = env.step(sample_action(env, coop))
             if coop:
                 done = done["__all__"]
-            if i % 50 == 0:
+            if i % 100 == 0:
                 env.close()
                 return
             i += 1

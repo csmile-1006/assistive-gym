@@ -30,12 +30,12 @@ class AssistiveEnv(gym.Env):
         task="",
         obs_robot_len=0,
         obs_human_len=0,
-        time_step=1 / 100,
+        time_step=1 / 50,
         frame_skip=5,
         render=True,
         gravity=-9.81,
         seed=1001,
-        record_video=False,
+        record_video=True,
     ):
         self.task = task
         self.time_step = time_step
