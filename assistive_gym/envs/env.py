@@ -49,11 +49,8 @@ class AssistiveEnv(gym.Env):
 
         self.width = 1920 // 4
         self.height = 1080 // 4
-        if render:
-            self.render()
-        else:
-            self.id = p.connect(p.DIRECT)
-            self.util = Util(self.id, self.np_random)
+        self._render = render
+        self.id = p.connect(p.DIRECT)
 
         self.directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets")
         self.human_creation = HumanCreation(self.id, np_random=self.np_random, cloth=("dressing" in task))
@@ -191,13 +188,26 @@ class AssistiveEnv(gym.Env):
 
     def reset(self):
         p.resetSimulation(physicsClientId=self.id)
+        if self._render:
+            self.gui = True
+            if self.id is not None:
+                self.disconnect()
+            self.id = p.connect(
+                p.GUI,
+                options=(
+                    "--background_color_red=0.8 --background_color_green=0.9 --background_color_blue=1.0 --width=%d"
+                    " --height=%d"
+                )
+                % (self.width, self.height),
+            )
+            self.util = Util(self.id, self.np_random)
+            self.util.enable_gpu()
+
         if not self.gui:
             # Reconnect the physics engine to forcefully clear memory when running long training scripts
             self.disconnect()
             self.id = p.connect(p.DIRECT)
             self.util = Util(self.id, self.np_random)
-        if self.gpu:
-            self.util.enable_gpu()
         # Configure camera position
         p.resetDebugVisualizerCamera(
             cameraDistance=1.75,
@@ -599,7 +609,7 @@ class AssistiveEnv(gym.Env):
                     "--background_color_red=0.8 --background_color_green=0.9 --background_color_blue=1.0 --width=%d"
                     " --height=%d"
                 )
-                % (64, 64),
+                % (self.width, self.height),
             )
             self.util = Util(self.id, self.np_random)
 
@@ -634,8 +644,6 @@ class AssistiveEnv(gym.Env):
         camera_width=1920 // 4,
         camera_height=1080 // 4,
     ):
-        self.camera_width = camera_width
-        self.camera_height = camera_height
         view_matrix = p.computeViewMatrixFromYawPitchRoll(
             camera_target, distance, rpy[2], rpy[1], rpy[0], 2, physicsClientId=self.id
         )
@@ -654,8 +662,8 @@ class AssistiveEnv(gym.Env):
         ), "You must call env.setup_camera() or env.setup_camera_rpy() before getting a camera image"
         view_matrix, projection_matrix = self.view_matrices[view], self.projection_matrices[view]
         w, h, img, depth, _ = p.getCameraImage(
-            self.camera_width,
-            self.camera_height,
+            self.width,
+            self.height,
             view_matrix,
             projection_matrix,
             lightDirection=light_pos,
