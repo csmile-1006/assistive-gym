@@ -81,7 +81,7 @@ class AssistiveEnv(gym.Env):
             config=self.config,
         )
         self.util = Util(self.id, self.np_random)
-        self.record_video = True
+        self.record_video = False
         self.video_writer = {"front": None, "right": None, "wrist": None, "top": None, "side": None}
 
         self.width = 1920 // 4
@@ -143,14 +143,15 @@ class AssistiveEnv(gym.Env):
         self.human_joint_lower_limits = None
         self.human_joint_upper_limits = None
 
-        self.log_dir = os.path.join(
-            Path(os.path.realpath(__file__)).parent.parent.parent,
-            "logs",
-            f"{self.task}_{self.robot_type}",
-            "videos",
-            datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-        )
-        os.makedirs(self.log_dir, exist_ok=True)
+        if self.record_video:
+            self.log_dir = os.path.join(
+                Path(os.path.realpath(__file__)).parent.parent.parent,
+                "logs",
+                f"{self.task}_{self.robot_type}",
+                "videos",
+                datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+            )
+            os.makedirs(self.log_dir, exist_ok=True)
 
     def get_viewpoints(self):
         return self.view_matrices.keys()
