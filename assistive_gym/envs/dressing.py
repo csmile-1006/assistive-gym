@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pybullet as p
 import pybullet_data  # noqa
+from gym import spaces
 
 from .env import AssistiveEnv
 
@@ -20,6 +21,22 @@ class DressingEnv(AssistiveEnv):
             obs_robot_len=24,
             obs_human_len=(28 if human_control else 0),
         )
+        reward_metadata = {
+            # "dressing": 1.0,
+            "action": 1.0,
+            "dressing_force": 1.0,
+            "velocity": 1.0,
+        }
+        weight = 1.0
+        reward_space = {}
+        for term_name in reward_metadata:
+            weight = reward_metadata.get(term_name, weight)
+            if weight > 0:
+                low, high = -1e-10, 1e1
+            elif weight < 0:
+                low, high = -1e-0, 1e-10
+            reward_space[f"Reward/{term_name}"] = spaces.Box(low=low, high=high, shape=())
+        self.reward_space = spaces.Dict(reward_space)
 
     def step(self, action):
         self.take_step(
@@ -120,7 +137,9 @@ class DressingEnv(AssistiveEnv):
         else:
             reward_dressing = -distance_to_hand
         # Get human preferences
-        preferences_score = self.human_preferences(end_effector_velocity=end_effector_velocity, dressing_forces=forces)
+        preferences_score, pref_info = self.human_preferences(
+            end_effector_velocity=end_effector_velocity, dressing_forces=forces, verbose=True
+        )
 
         elbow_pos, elbow_orient = p.getLinkState(
             self.human, 17, computeForwardKinematics=True, physicsClientId=self.id
@@ -154,6 +173,12 @@ class DressingEnv(AssistiveEnv):
             "obs_robot_len": self.obs_robot_len,
             "obs_human_len": self.obs_human_len,
         }
+        info.update({
+            # "Reward/dressing": reward_dressing,
+            "Reward/action": reward_action,
+            "Reward/dressing_force": pref_info["Reward/dressing_force"],
+            "Reward/velocity": pref_info["Reward/velocity"],
+        })
         done = False
 
         return obs, reward, done, info

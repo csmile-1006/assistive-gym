@@ -110,7 +110,7 @@ class HumanCreation:
                 length=0.253 / 8,
                 position_offset=[0.253 / 2.5 - 0.253 / 16, 0, 0],
                 orientation=p.getQuaternionFromEuler([0, np.pi / 2.0, 0], physicsClientId=self.id),
-                color=[0, 1, 0, 1],
+                color=[0, 1, 1, 1],
             )
             neck_c, neck_v = create_body(
                 shape=p.GEOM_CAPSULE,
@@ -129,7 +129,7 @@ class HumanCreation:
                 radius=0.043 * rs,
                 length=0,
                 position_offset=[0, 0, -0.043 * rs],
-                color=[0, 1, 0, 1],
+                color=[1, 0, 1, 1],
             )
             right_hand_c, right_hand_v = create_body(
                 shape=p.GEOM_SPHERE, radius=0.043 * rs, length=0, position_offset=[0, 0, -0.043 * rs]
@@ -249,7 +249,7 @@ class HumanCreation:
                 length=0.225 / 8,
                 position_offset=[0.225 / 2.5 - 0.225 / 16, 0, 0],
                 orientation=p.getQuaternionFromEuler([0, np.pi / 2.0, 0], physicsClientId=self.id),
-                color=[0, 1, 0, 1],
+                color=[0, 1, 1, 1],
             )
             neck_c, neck_v = create_body(
                 shape=p.GEOM_CAPSULE,
@@ -268,7 +268,7 @@ class HumanCreation:
                 radius=0.0355 * rs,
                 length=0,
                 position_offset=[0, 0, -0.0355 * rs],
-                color=[0, 1, 0, 1],
+                color=[1, 0, 1, 1],
             )
             right_hand_c, right_hand_v = create_body(
                 shape=p.GEOM_SPHERE, radius=0.0355 * rs, length=0, position_offset=[0, 0, -0.0355 * rs]
@@ -304,7 +304,8 @@ class HumanCreation:
                 shapeType=p.GEOM_SPHERE,
                 radius=(0.0355 + 0.027) / 2 * rs,
                 length=0,
-                rgbaColor=[0.8, 0.6, 0.4, 1],
+                # rgbaColor=[0.8, 0.6, 0.4, 1],
+                rgbaColor=[0, 1, 0, 1],  # Bright vivid green color for contrast
                 visualFramePosition=[0, 0.01, 0],
                 physicsClientId=self.id,
             )

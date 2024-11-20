@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pybullet as p
+from gym import spaces
 
 from .env import AssistiveEnv
 
@@ -19,6 +20,26 @@ class FeedingEnv(AssistiveEnv):
             obs_robot_len=25,
             obs_human_len=(23 if human_control else 0),
         )
+        reward_metadata = {
+            "food": 1.0,
+            "distance_mouth_target": 1.0,
+            "action": 1.0,
+            "high_target_forces": 1.0,
+            "velocity": 1.0,
+            "force_nontarget": 1.0,
+            "food_velocities": 1.0,
+            "food_hit_human": 1.0,
+        }
+        weight = 1.0
+        reward_space = {}
+        for term_name in reward_metadata:
+            weight = reward_metadata.get(term_name, weight)
+            if weight > 0:
+                low, high = -1e-10, 1e1
+            elif weight < 0:
+                low, high = -1e-0, 1e-10
+            reward_space[f"Reward/{term_name}"] = spaces.Box(low=low, high=high, shape=())
+        self.reward_space = spaces.Dict(reward_space)
 
     def step(self, action):
         self.take_step(
@@ -36,12 +57,13 @@ class FeedingEnv(AssistiveEnv):
         obs = self._get_obs([spoon_force_on_human], [robot_force_on_human, spoon_force_on_human])
 
         # Get human preferences
-        preferences_score = self.human_preferences(
+        preferences_score, pref_info = self.human_preferences(
             end_effector_velocity=end_effector_velocity,
             total_force_on_human=robot_force_on_human,
             tool_force_at_target=spoon_force_on_human,
             food_hit_human_reward=food_hit_human_reward,
             food_mouth_velocities=food_mouth_velocities,
+            verbose=True,
         )
 
         spoon_pos, spoon_orient = p.getBasePositionAndOrientation(self.spoon, physicsClientId=self.id)
@@ -70,6 +92,18 @@ class FeedingEnv(AssistiveEnv):
             "obs_robot_len": self.obs_robot_len,
             "obs_human_len": self.obs_human_len,
         }
+
+        info.update({
+            "Reward/food": reward_food,
+            "Reward/distance_mouth_target": reward_distance_mouth_target,
+            "Reward/action": reward_action,
+            # Human preferences
+            "Reward/high_target_forces": pref_info["Reward/high_target_forces"],
+            "Reward/velocity": pref_info["Reward/velocity"],
+            "Reward/force_nontarget": pref_info["Reward/force_nontarget"],
+            "Reward/food_velocities": pref_info["Reward/food_velocities"],
+            "Reward/food_hit_human": food_hit_human_reward,
+        })
         done = False
 
         return obs, reward, done, info
