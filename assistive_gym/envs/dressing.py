@@ -15,7 +15,7 @@ class DressingEnv(AssistiveEnv):
             task="dressing",
             human_control=human_control,
             frame_skip=10,
-            time_step=0.01,
+            time_step=1 / 240,
             action_robot_len=7,
             action_human_len=(10 if human_control else 0),
             obs_robot_len=24,
