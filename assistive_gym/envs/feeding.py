@@ -333,7 +333,7 @@ class FeedingEnv(AssistiveEnv):
         self.target_pos = np.array(target_pos)
         sphere_collision = -1
         sphere_visual = p.createVisualShape(
-            shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[0, 1, 0, 1], physicsClientId=self.id
+            shapeType=p.GEOM_SPHERE, radius=0.02, rgbaColor=[0, 1, 0, 1], physicsClientId=self.id
         )
         self.target = p.createMultiBody(
             baseMass=0.0,
