@@ -82,58 +82,79 @@ class AssistiveEnv(gym.Env):
         )
         self.util = Util(self.id, self.np_random)
         self.record_video = False
-        self.video_writer = {"front": None, "right": None, "wrist": None, "top": None, "side": None}
+        self.video_writer = {"front": None, "top": None, "side": None}
 
         self.width = 1920 // 4
         self.height = 1080 // 4
 
         # Configure the camera with each viewpoint (front, right) using setup_camera_rpy
-        front_view_matrix, front_projection_matrix = self.setup_camera_rpy(
-            camera_target=[0.5, 0, 0.75],
-            distance=1.0,
-            rpy=[0, -45, 0],
-            fov=60,
+        camera_kwargs = dict(
             camera_width=self.width,
             camera_height=self.height,
         )
-        right_view_matrix, right_projection_matrix = self.setup_camera_rpy(
-            camera_target=[0.0, 0, 0.75],
-            distance=1.5,
-            rpy=[0, -60, 90],
-            fov=45,
-            camera_width=self.width,
-            camera_height=self.height,
-        )
-        top_view_matrix, top_projection_matrix = self.setup_camera_rpy(
-            camera_target=[0.0, 0, 0.75],
-            distance=1.5,
-            rpy=[0, -90, 0],  # Changed pitch to -90 for ceiling view
-            fov=35,
-            camera_width=self.width,
-            camera_height=self.height,
-        )
-        side_view_matrix, side_projection_matrix = self.setup_camera_rpy(
-            camera_target=[-0.1, 0, 0.75],
-            distance=1.5,
-            rpy=[0, -35, 45],
-            fov=60,
-            camera_width=self.width,
-            camera_height=self.height,
-        )
+        match self.robot_type:
+            case "baxter":
+                front_camera_kwargs = dict(
+                    camera_target=[-0.2, 0, 0.75],
+                    distance=1.3,
+                    rpy=[0, -45, 0],
+                    fov=60,
+                )
+            case "pr2":
+                front_camera_kwargs = dict(
+                    camera_target=[0.2, 0, 0.75],
+                    distance=1.3,
+                    rpy=[0, -45, 0],
+                    fov=60,
+                )
+            case _:
+                raise ValueError(f"Unknown robot type: {self.robot_type}")
+        front_camera_kwargs.update(camera_kwargs)
+
+        match self.robot_type:
+            case "baxter":
+                side_camera_kwargs = dict(
+                    camera_target=[0.0, 0, 0.75],
+                    distance=1.5,
+                    rpy=[0, -60, -90],
+                    fov=45,
+                )
+            case "pr2":
+                side_camera_kwargs = dict(
+                    camera_target=[0.0, 0, 0.75],
+                    distance=1.5,
+                    rpy=[0, -60, 90],
+                    fov=45,
+                )
+            case _:
+                raise ValueError(f"Unknown robot type: {self.robot_type}")
+        side_camera_kwargs.update(camera_kwargs)
+
+        match self.robot_type:
+            case "baxter" | "pr2":
+                top_camera_kwargs = dict(
+                    camera_target=[0.0, 0, 0.75],
+                    distance=1.5,
+                    rpy=[0, -90, 0],
+                    fov=35,
+                )
+            case _:
+                raise ValueError(f"Unknown robot type: {self.robot_type}")
+        top_camera_kwargs.update(camera_kwargs)
+
+        front_view_matrix, front_projection_matrix = self.setup_camera_rpy(**front_camera_kwargs)
+        top_view_matrix, top_projection_matrix = self.setup_camera_rpy(**top_camera_kwargs)
+        side_view_matrix, side_projection_matrix = self.setup_camera_rpy(**side_camera_kwargs)
 
         self.view_matrices = {
             "front": front_view_matrix,
-            "right": right_view_matrix,
-            # "side": side_view_matrix,
+            "side": side_view_matrix,
             "top": top_view_matrix,
-            # "wrist": None,
         }
         self.projection_matrices = {
             "front": front_projection_matrix,
-            "right": right_projection_matrix,
-            # "side": side_projection_matrix,
+            "side": side_projection_matrix,
             "top": top_projection_matrix,
-            # "wrist": None,
         }
 
         # self.human_limits_model = load_model(os.path.join(self.world_creation.directory, 'realistic_arm_limits_model.h5'))
@@ -753,7 +774,9 @@ class AssistiveEnv(gym.Env):
                 self.video_writer[view] = {"name": f"{task}_{date}_{view}.mp4", "writer": []}
                 if self.video_writer[view] is not None:
                     imageio.mimsave(
-                        os.path.join(self.log_dir, self.video_writer[view]["name"]), self.video_writer[view]["writer"]
+                        os.path.join(self.log_dir, self.video_writer[view]["name"]),
+                        self.video_writer[view]["writer"],
+                        fps=20,
                     )
 
     def record_video_frame(self):
