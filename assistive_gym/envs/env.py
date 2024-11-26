@@ -5,7 +5,6 @@ import time
 from pathlib import Path
 
 import gym
-import imageio
 import numpy as np
 import pybullet as p
 import pybullet_data  # noqa
