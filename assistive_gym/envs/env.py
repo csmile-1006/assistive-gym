@@ -81,8 +81,8 @@ class AssistiveEnv(gym.Env):
             config=self.config,
         )
         self.util = Util(self.id, self.np_random)
-        self.record_video = False
-        self.video_writer = {"front": None, "top": None, "side": None}
+        self.record_video = True
+        self.video_writer = {key: {"name": None, "writer": None} for key in ["front", "top", "side"]}
 
         self.width = 1920 // 4
         self.height = 1080 // 4
@@ -92,54 +92,51 @@ class AssistiveEnv(gym.Env):
             camera_width=self.width,
             camera_height=self.height,
         )
-        match self.robot_type:
-            case "baxter":
-                front_camera_kwargs = dict(
-                    camera_target=[-0.2, 0, 0.75],
-                    distance=1.3,
-                    rpy=[0, -45, 0],
-                    fov=60,
-                )
-            case "pr2":
-                front_camera_kwargs = dict(
-                    camera_target=[0.2, 0, 0.75],
-                    distance=1.3,
-                    rpy=[0, -45, 0],
-                    fov=60,
-                )
-            case _:
-                raise ValueError(f"Unknown robot type: {self.robot_type}")
+        if self.robot_type == "baxter":
+            front_camera_kwargs = dict(
+                camera_target=[-0.2, 0, 0.75],
+                distance=1.3,
+                rpy=[0, -45, 0],
+                fov=60,
+            )
+        elif self.robot_type == "pr2":
+            front_camera_kwargs = dict(
+                camera_target=[0.2, 0, 0.75],
+                distance=1.3,
+                rpy=[0, -45, 0],
+                fov=60,
+            )
+        else:
+            raise ValueError(f"Unknown robot type: {self.robot_type}")
         front_camera_kwargs.update(camera_kwargs)
 
-        match self.robot_type:
-            case "baxter":
-                side_camera_kwargs = dict(
-                    camera_target=[0.0, 0, 0.75],
-                    distance=1.5,
-                    rpy=[0, -60, -90],
-                    fov=45,
-                )
-            case "pr2":
-                side_camera_kwargs = dict(
-                    camera_target=[0.0, 0, 0.75],
-                    distance=1.5,
-                    rpy=[0, -60, 90],
-                    fov=45,
-                )
-            case _:
-                raise ValueError(f"Unknown robot type: {self.robot_type}")
+        if self.robot_type == "baxter":
+            side_camera_kwargs = dict(
+                camera_target=[0.0, 0, 0.75],
+                distance=1.5,
+                rpy=[0, -60, -90],
+                fov=45,
+            )
+        elif self.robot_type == "pr2":
+            side_camera_kwargs = dict(
+                camera_target=[0.0, 0, 0.75],
+                distance=1.5,
+                rpy=[0, -60, 90],
+                fov=45,
+            )
+        else:
+            raise ValueError(f"Unknown robot type: {self.robot_type}")
         side_camera_kwargs.update(camera_kwargs)
 
-        match self.robot_type:
-            case "baxter" | "pr2":
-                top_camera_kwargs = dict(
-                    camera_target=[0.0, 0, 0.75],
-                    distance=1.5,
-                    rpy=[0, -90, 0],
-                    fov=35,
-                )
-            case _:
-                raise ValueError(f"Unknown robot type: {self.robot_type}")
+        if self.robot_type == "baxter" or self.robot_type == "pr2":
+            top_camera_kwargs = dict(
+                camera_target=[0.0, 0, 0.75],
+                distance=1.5,
+                rpy=[0, -90, 0],
+                fov=35,
+            )
+        else:
+            raise ValueError(f"Unknown robot type: {self.robot_type}")
         top_camera_kwargs.update(camera_kwargs)
 
         front_view_matrix, front_projection_matrix = self.setup_camera_rpy(**front_camera_kwargs)
@@ -766,21 +763,32 @@ class AssistiveEnv(gym.Env):
         self.last_sim_time = None
         self.iteration = 0
 
-    def setup_record_video(self, task="scratch_itch_pr2"):
-        if self.record_video and self.gui:
+    def setup_record_video(self, task_type=None):
+        if self.record_video:
             now = datetime.datetime.now()
             date = now.strftime("%Y-%m-%d_%H-%M-%S")
             for view in self.view_matrices:
-                self.video_writer[view] = {"name": f"{task}_{date}_{view}.mp4", "writer": []}
-                if self.video_writer[view] is not None:
-                    imageio.mimsave(
-                        os.path.join(self.log_dir, self.video_writer[view]["name"]),
-                        self.video_writer[view]["writer"],
-                        fps=20,
+                if self.video_writer[view]["writer"] is not None:
+                    self.video_writer[view]["writer"] = np.array(self.video_writer[view]["writer"])
+                    if task_type is not None:
+                        video_name = f"{self.video_writer[view]['name']}_{task_type}"
+                    else:
+                        video_name = self.video_writer[view]["name"]
+                    import cv2
+
+                    writer = cv2.VideoWriter(
+                        f"{os.path.join(self.log_dir, video_name)}.mp4",
+                        cv2.VideoWriter_fourcc(*"mp4v"),
+                        20,
+                        (self.width, self.height),
                     )
+                    for frame in self.video_writer[view]["writer"]:
+                        writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+                    writer.release()
+                self.video_writer[view] = {"name": f"{self.task}_{date}_{view}", "writer": []}
 
     def record_video_frame(self):
-        if self.record_video and self.gui:
+        if self.record_video:
             for view in self.view_matrices:
                 frame, _ = self.get_camera_image_depth(view=view)
                 frame = np.reshape(frame, (self.height, self.width, 4))[:, :, :3]

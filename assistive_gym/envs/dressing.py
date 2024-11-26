@@ -65,7 +65,9 @@ class DressingEnv(AssistiveEnv):
                 self.cloth_attachment, np.array(state[0]), [0, 0, 0, 1], physicsClientId=self.id
             )
             p.stepSimulation(physicsClientId=self.id)
-        self.record_video_frame()
+
+        if self.record_video:
+            self.record_video_frame()
 
         x, y, z, cx, cy, cz, fx, fy, fz = p.getSoftBodyData(self.cloth, physicsClientId=self.id)
         mesh_points = np.concatenate(

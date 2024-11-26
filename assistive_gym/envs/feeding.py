@@ -106,6 +106,9 @@ class FeedingEnv(AssistiveEnv):
         })
         done = False
 
+        if self.record_video:
+            self.record_video_frame()
+
         return obs, reward, done, info
 
     def get_total_force(self):
