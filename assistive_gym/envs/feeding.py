@@ -26,7 +26,6 @@ class FeedingEnv(AssistiveEnv):
             "action": 0.1,
             "high_target_forces": 0.1,
             "velocity": 0.1,
-            "force_nontarget": 0.1,
             "food_velocities": 1.0,
             "food_hit_human": 1.0,
         }
