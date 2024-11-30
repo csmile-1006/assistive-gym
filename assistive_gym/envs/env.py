@@ -83,8 +83,8 @@ class AssistiveEnv(gym.Env):
         self.record_video = False
         self.video_writer = {key: {"name": None, "writer": None} for key in ["front", "top", "side"]}
 
-        self.width = 1920 // 8
-        self.height = 1080 // 8
+        self.width = 1920 // 4
+        self.height = 1080 // 4
 
         # Configure the camera with each viewpoint (front, right) using setup_camera_rpy
         camera_kwargs = dict(
