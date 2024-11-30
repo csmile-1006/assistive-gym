@@ -34,7 +34,10 @@ class FeedingEnv(AssistiveEnv):
         for term_name in reward_metadata:
             weight = reward_metadata.get(term_name, weight)
             if weight > 0:
-                low, high = 1e-10, reward_metadata[term_name]
+                if weight >= 1.0:
+                    low, high = 1e-1, reward_metadata[term_name]
+                else:
+                    low, high = 0, reward_metadata[term_name]
             elif weight < 0:
                 low, high = -1e-0, -1e-10
             reward_space[f"Reward/{term_name}"] = spaces.Box(low=low, high=high, shape=())
