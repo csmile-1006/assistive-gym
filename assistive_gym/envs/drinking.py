@@ -258,129 +258,140 @@ class DrinkingEnv(AssistiveEnv):
         self.target_pos = np.array(target_pos)
         p.resetBasePositionAndOrientation(self.target, self.target_pos, [0, 0, 0, 1], physicsClientId=self.id)
 
+    def compute_reward(self, action):
+        """
+        Computes a weighted sum of sub-reward (positive) and sub-penalty (negative) terms.
+        Returns:
+            total_reward (float): scalar reward for this step
+            info (dict): a dictionary of each sub-term's unweighted value
+        """
+        # -------------------------------------------------------
+        # 1) ENVIRONMENT QUANTITIES USED FOR REWARD COMPUTATION
+        # -------------------------------------------------------
+        # a) Forces
+        robot_force_on_human, cup_force_on_human = self.get_total_force()
+        total_force_on_human = robot_force_on_human + cup_force_on_human
+
+        # b) Water-based rewards from environment
+        #    (assuming self.get_water_rewards() is available)
+        #      reward_water: positive when water enters mouth
+        #      water_hit_human_reward: negative if water spills on human
+        reward_water, _, water_hit_human_reward = self.get_water_rewards()
+
+        # c) End-effector (cup) velocity for jerk/smoothness penalty
+        end_effector_velocity = np.linalg.norm(p.getBaseVelocity(self.cup, physicsClientId=self.id)[0])
+
+        # d) Distance to mouth for cup positioning
+        #    Cup top center is accessible via self.cup_top_center_offset transforms
+        cup_pos, cup_orient = p.getBasePositionAndOrientation(self.cup, physicsClientId=self.id)
+        offset_cup_pos, offset_cup_orient = p.multiplyTransforms(
+            cup_pos,
+            cup_orient,
+            [0, 0.06, 0],
+            p.getQuaternionFromEuler([np.pi / 2.0, 0, 0], physicsClientId=self.id),
+            physicsClientId=self.id,
+        )
+        cup_top_center_pos, _ = p.multiplyTransforms(
+            offset_cup_pos,
+            offset_cup_orient,
+            self.cup_top_center_offset,
+            [0, 0, 0, 1],
+            physicsClientId=self.id,
+        )
+        distance_to_mouth = np.linalg.norm(np.array(cup_top_center_pos) - self.target_pos)
+
+        # e) Cup orientation for tilt
+        cup_euler = p.getEulerFromQuaternion(cup_orient, physicsClientId=self.id)
+        current_tilt_angle = cup_euler[0]  # Using x-axis rotation as tilt
+        desired_tilt_angle = np.pi/2.0  # Ideal tilt angle ~ 90 degrees
+
+        # -------------------------------------------------------
+        # 2) SUB-TERMS (REWARDS = + , PENALTIES = -)
+        # -------------------------------------------------------
+
+        # PRIMARY REWARD: Water Transfer (r_water_transfer)
+        #   This encourages actual success of getting water in the mouth
+        r_water_transfer = reward_water  # typically positive if water in mouth
+
+        # Cup Distance Reward (r_cup_distance):
+        #   Encourage moving the cup close to mouth via an exponential function
+        distance_sigma = 0.5
+        r_cup_distance = np.exp(-distance_to_mouth / distance_sigma)
+
+        # Cup Tilting Reward (r_cup_tilting):
+        #   Encourage correct tilt angle near desired_tilt_angle
+        tilt_diff = abs(current_tilt_angle - desired_tilt_angle)
+        tilt_sigma = 0.2
+        r_cup_tilting = np.exp(-(tilt_diff**2) / (tilt_sigma**2))
+
+        # Spillage Penalty (r_spillage):
+        #   water_hit_human_reward is negative if water spills on the human
+        r_spillage = water_hit_human_reward  # negative if spillage
+
+        # Contact Penalty (r_contact):
+        #   Force on human => negative reward
+        r_contact = -total_force_on_human
+
+        # Jerky Movement Penalty (r_jerky):
+        #   Higher velocity => stronger negative
+        r_jerky = -(end_effector_velocity**2)
+
+        # -------------------------------------------------------
+        # 3) TOTAL REWARD: Weighted Sum
+        #    Use self.default_reward_weights[...] for each term
+        # -------------------------------------------------------
+        total_reward = (
+            self.default_reward_weights["r_water_transfer"] * r_water_transfer
+            + self.default_reward_weights["r_cup_distance"] * r_cup_distance
+            + self.default_reward_weights["r_cup_tilting"] * r_cup_tilting
+            + self.default_reward_weights["r_spillage"] * r_spillage
+            + self.default_reward_weights["r_contact"] * r_contact
+            + self.default_reward_weights["r_jerky"] * r_jerky
+        )
+
+        # Return both the total reward and a dict of unweighted terms for logging
+        info = {
+            "r_water_transfer": r_water_transfer,
+            "r_cup_distance": r_cup_distance,
+            "r_cup_tilting": r_cup_tilting,
+            "r_spillage": r_spillage,
+            "r_contact": r_contact,
+            "r_jerky": r_jerky,
+        }
+
+        return total_reward, info
+
     @property
     def reward_space(self):
         """
-        Defines the permissible range of weights for each reward term.
-        NOTE: The primary reward term (primary_reward) is locked to [1.0, 1.0].
-              All other terms have ranges [0.0, <1.0], chosen to be reasonable for RL.
+        Defines the allowable weight ranges for each term.
+          - Primary term (r_water_transfer) has fixed range [1.0, 1.0].
+          - Other terms have non-negative ranges < 1.0 (e.g., up to 0.5).
         """
         return Dict(
             {
-                "primary_reward": Box(low=1.0, high=1.0, shape=(), dtype=float),
-                "tilt_alignment": Box(low=0.0, high=0.5, shape=(), dtype=float),
-                "water_in_mouth": Box(low=0.0, high=0.5, shape=(), dtype=float),
-                "spill_penalty": Box(low=0.0, high=0.2, shape=(), dtype=float),
-                "contact_penalty": Box(low=0.0, high=0.2, shape=(), dtype=float),
-                "velocity_penalty": Box(low=0.0, high=0.2, shape=(), dtype=float),
+                # Primary reward term (fixed at 1.0)
+                "r_water_transfer": Box(low=1.0, high=1.0, shape=(), dtype=float),
+                # Other terms: non-negative, strictly less than primary
+                "r_cup_distance": Box(low=0.0, high=0.5, shape=(), dtype=float),
+                "r_cup_tilting": Box(low=0.0, high=0.5, shape=(), dtype=float),
+                "r_spillage": Box(low=0.0, high=0.5, shape=(), dtype=float),
+                "r_contact": Box(low=0.0, high=0.5, shape=(), dtype=float),
+                "r_jerky": Box(low=0.0, high=0.5, shape=(), dtype=float),
             }
         )
 
     @property
     def default_reward_weights(self):
         """
-        Default weights for each reward term.
-        These values multiply the respective term in the weighted sum for the total reward.
-        Positive terms (rewards) are added, negative terms (penalties) are subtracted.
+        Default weights for each reward/penalty term.
+        r_water_transfer is the primary term, forced to 1.0.
         """
         return {
-            "primary_reward": 1.0,  # Must remain 1.0 (range fixed at [1.0, 1.0])
-            "tilt_alignment": 0.2,
-            "water_in_mouth": 0.4,
-            "spill_penalty": 0.1,
-            "contact_penalty": 0.15,
-            "velocity_penalty": 0.1,
+            "r_water_transfer": 1.0,  # primary reward (fixed)
+            "r_cup_distance": 0.2,
+            "r_cup_tilting": 0.2,
+            "r_spillage": 0.5,
+            "r_contact": 0.3,
+            "r_jerky": 0.1,
         }
-
-    def compute_reward(self, action):
-        """
-        Computes the total reward for the current environment state using the
-        observation data and environment methods (no new arguments allowed).
-
-        Returns:
-            total_reward (float): The aggregated weighted reward.
-            reward_info (dict): A dictionary of individual reward terms for debugging/logging.
-        """
-
-        # --------------------------------------------------------------------
-        # Retrieve or compute relevant signals from the environment:
-
-        # 1. Distance from cup to mouth (for primary reward)
-        cup_pos, cup_orient = p.getBasePositionAndOrientation(self.cup, physicsClientId=self.id)
-        dist_cup_to_mouth = np.linalg.norm(np.array(cup_pos) - self.target_pos)
-
-        # 2. Cup tilt alignment
-        #    Let's define a "desired pitch" for a comfortable drinking angle
-        #    and measure how far the actual pitch differs.
-        desired_pitch = -np.pi / 4.0  # e.g., -45 degrees
-        cup_euler = p.getEulerFromQuaternion(cup_orient, physicsClientId=self.id)
-        pitch_diff = abs(cup_euler[1] - desired_pitch)  # difference in pitch from desired
-        # Construct a tilt alignment reward, decreasing with pitch difference
-        tilt_val = np.exp(-2.0 * (pitch_diff**2))
-
-        # 3. Water near mouth ("water_in_mouth")
-        #    We approximate "successful water transfer" by counting how many water spheres
-        #    are within a small radius of the mouth.
-        water_in_mouth_val = 0.0
-        mouth_radius = 0.05
-        for w_id in getattr(self, "waters", []):
-            w_pos, _ = p.getBasePositionAndOrientation(w_id, physicsClientId=self.id)
-            dist_to_mouth = np.linalg.norm(np.array(w_pos) - self.target_pos)
-            if dist_to_mouth < mouth_radius:
-                # Each water particle near the mouth => small positive bonus
-                water_in_mouth_val += 0.1
-
-        # 4. Spilling penalty
-        #    Count water particles that have fallen below a certain height (e.g. below ~0.7m).
-        #    This indicates the water is spilled.
-        spill_penalty_raw = 0.0
-        spill_height_threshold = 0.7
-        for w_id in getattr(self, "waters", []):
-            w_pos, _ = p.getBasePositionAndOrientation(w_id, physicsClientId=self.id)
-            if w_pos[2] < spill_height_threshold:
-                spill_penalty_raw += 1.0
-        # This raw count is scaled to produce a negative penalty
-        spill_penalty_value = spill_penalty_raw * 0.1
-
-        # 5. Contact penalty (cup_force_on_human)
-        #    If the robot presses the cup into the human strongly, that's unsafe.
-        _, cup_force_on_human = self.get_total_force()
-        # We'll penalize any force > 0.
-        # A small margin might be allowed, but let's keep it simple:
-        contact_penalty_value = max(0.0, cup_force_on_human) * 0.01
-
-        # 6. Velocity penalty
-        #    Higher end-effector velocity => less comfortable, so penalize it.
-        end_effector_velocity = np.linalg.norm(p.getBaseVelocity(self.cup, physicsClientId=self.id)[0])
-        velocity_penalty_value = end_effector_velocity
-
-        # --------------------------------------------------------------------
-        # Construct each term's sign (positive or negative) and store in dictionary:
-
-        # Positive terms
-        # primary_reward: encourage the cup to get close to mouth
-        # (We use an exponential function for convenience, higher near 0 distance)
-        primary_reward_val = np.exp(-3.0 * dist_cup_to_mouth)
-
-        reward_terms = {
-            # The primary reward must be positive (the main success metric)
-            "primary_reward": primary_reward_val,
-            # Additional positive rewards
-            "tilt_alignment": tilt_val,
-            "water_in_mouth": water_in_mouth_val,
-            # Negative terms (penalties). The sign is negative here.
-            # We store them as negative so that after multiplication with the weight,
-            # they subtract from the total.
-            "spill_penalty": -spill_penalty_value,
-            "contact_penalty": -contact_penalty_value,
-            "velocity_penalty": -velocity_penalty_value,
-        }
-
-        # --------------------------------------------------------------------
-        # Weighted sum of all reward terms:
-        total_reward = 0.0
-        for term_name, term_value in reward_terms.items():
-            weight = self.default_reward_weights[term_name]
-            total_reward += weight * term_value
-
-        return total_reward, reward_terms

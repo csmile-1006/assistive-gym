@@ -38,7 +38,7 @@ class AssistiveEnv(gym.Env):
         self.id = p.connect(p.DIRECT)
         # print('Physics server ID:', self.id)
         self.gui = False
-        self.gpu = True
+        self.gpu = False
 
         self.robot_type = robot_type
         self.task = task
