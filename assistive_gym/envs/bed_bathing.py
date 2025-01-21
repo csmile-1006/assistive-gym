@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pybullet as p
-from gym import spaces
 
 from .env import AssistiveEnv
 
@@ -58,14 +57,14 @@ class BedBathingEnv(AssistiveEnv):
             + preferences_score
         )
 
-        if self.gui and tool_force_on_human > 0:
-            print(
-                "Task success:",
-                self.task_success,
-                "Force at tool on human:",
-                tool_force_on_human,
-                reward_new_contact_points,
-            )
+        # if self.gui and tool_force_on_human > 0:
+        #     print(
+        #         "Task success:",
+        #         self.task_success,
+        #         "Force at tool on human:",
+        #         tool_force_on_human,
+        #         reward_new_contact_points,
+        #     )
 
         info = {
             "total_force_on_human": total_force_on_human,
@@ -76,6 +75,8 @@ class BedBathingEnv(AssistiveEnv):
             "obs_human_len": self.obs_human_len,
         }
         done = False
+        if self.record_video:
+            self.record_video_frame()
 
         return obs, reward, done, info
 

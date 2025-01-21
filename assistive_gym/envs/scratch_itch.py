@@ -1,5 +1,3 @@
-import os
-from gym import spaces
 import numpy as np
 import pybullet as p
 
@@ -33,11 +31,14 @@ class ScratchItchEnv(AssistiveEnv):
 
         reward = self.config('distance_weight')*reward_distance + self.config('action_weight')*reward_action + self.config('tool_force_weight')*tool_force_at_target + self.config('scratch_reward_weight')*reward_force_scratch + preferences_score
 
-        if self.gui and tool_force_at_target > 0:
-            print('Task success:', self.task_success, 'Tool force at target:', tool_force_at_target, reward_force_scratch)
+        # if self.gui and tool_force_at_target > 0:
+        #     print('Task success:', self.task_success, 'Tool force at target:', tool_force_at_target, reward_force_scratch)
 
         info = {'total_force_on_human': total_force_on_human, 'task_success': int(self.task_success >= self.config('task_success_threshold')), 'action_robot_len': self.action_robot_len, 'action_human_len': self.action_human_len, 'obs_robot_len': self.obs_robot_len, 'obs_human_len': self.obs_human_len}
         done = False
+
+        if self.record_video:
+            self.record_video_frame()
 
         return obs, reward, done, info
 
@@ -88,6 +89,7 @@ class ScratchItchEnv(AssistiveEnv):
         return np.concatenate([robot_obs, human_obs]).ravel()
 
     def reset(self):
+        super().reset()
         self.setup_timing()
         self.task_success = 0
         self.prev_target_contact_pos = np.zeros(3)

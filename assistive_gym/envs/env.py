@@ -2,6 +2,7 @@ import configparser
 import datetime
 import os
 import time
+import logging
 from pathlib import Path
 
 import gym
@@ -10,9 +11,13 @@ import pybullet as p
 import pybullet_data  # noqa
 from gym import spaces
 from gym.utils import seeding
+import imageio
 
 from .util import Util
 from .world_creation import WorldCreation
+
+
+logging.getLogger("imageio_ffmpeg").setLevel(logging.ERROR)
 
 
 class AssistiveEnv(gym.Env):
@@ -81,10 +86,10 @@ class AssistiveEnv(gym.Env):
         )
         self.util = Util(self.id, self.np_random)
         self.record_video = False
-        self.video_writer = {key: {"name": None, "writer": None} for key in ["front", "top", "side"]}
-
-        self.width = 1920 // 4
-        self.height = 1080 // 4
+        self.log_dir = None
+        # self.width = 1920 // 4
+        # self.height = 1080 // 4
+        self.width, self.height = 256, 256
 
         # Configure the camera with each viewpoint (front, right) using setup_camera_rpy
         camera_kwargs = dict(
@@ -99,6 +104,23 @@ class AssistiveEnv(gym.Env):
                 fov=60,
             )
         elif self.robot_type == "pr2":
+            if self.task == "drinking":
+                front_camera_kwargs = dict(
+                    camera_target=[0.1, 0, 0.75],
+                    distance=1.3,
+                    # rpy=[0, -60, -45],
+                    rpy=[0, -60, 45],
+                    # rpy=[0, -75, 30],
+                    fov=45,
+                )
+            else:
+                front_camera_kwargs = dict(
+                    camera_target=[0.2, 0, 0.75],
+                    distance=1.3,
+                    rpy=[0, -45, 0],
+                    fov=60,
+                )
+        elif self.robot_type in ["jaco", "sawyer"]:
             front_camera_kwargs = dict(
                 camera_target=[0.2, 0, 0.75],
                 distance=1.3,
@@ -123,11 +145,18 @@ class AssistiveEnv(gym.Env):
                 rpy=[0, -60, 90],
                 fov=45,
             )
+        elif self.robot_type in ["jaco", "sawyer"]:
+            side_camera_kwargs = dict(
+                camera_target=[0.0, 0, 0.75],
+                distance=1.5,
+                rpy=[0, -60, 90],
+                fov=45,
+            )
         else:
             raise ValueError(f"Unknown robot type: {self.robot_type}")
         side_camera_kwargs.update(camera_kwargs)
 
-        if self.robot_type == "baxter" or self.robot_type == "pr2":
+        if self.robot_type in ["baxter", "pr2", "jaco", "sawyer"]:
             top_camera_kwargs = dict(
                 camera_target=[0.0, 0, 0.75],
                 distance=1.5,
@@ -144,14 +173,15 @@ class AssistiveEnv(gym.Env):
 
         self.view_matrices = {
             "front": front_view_matrix,
-            "side": side_view_matrix,
-            "top": top_view_matrix,
+            # "side": side_view_matrix,
+            # "top": top_view_matrix,
         }
         self.projection_matrices = {
             "front": front_projection_matrix,
-            "side": side_projection_matrix,
-            "top": top_projection_matrix,
+            # "side": side_projection_matrix,
+            # "top": top_projection_matrix,
         }
+        self.video_writer = {key: {"name": None, "writer": None} for key in self.view_matrices.keys()}
 
         # self.human_limits_model = load_model(os.path.join(self.world_creation.directory, 'realistic_arm_limits_model.h5'))
         self.human_limits_model = None
@@ -160,35 +190,6 @@ class AssistiveEnv(gym.Env):
         self.human_joint_lower_limits = None
         self.human_joint_upper_limits = None
 
-        if self.record_video:
-            self.log_dir = os.path.join(
-                Path(os.path.realpath(__file__)).parent.parent.parent,
-                "logs",
-                f"{self.task}_{self.robot_type}",
-                "videos",
-                datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-            )
-            os.makedirs(self.log_dir, exist_ok=True)
-
-    def get_viewpoints(self):
-        return self.view_matrices.keys()
-
-    def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
-
-    def enable_gpu(self):
-        self.gpu = True
-
-    def step(self, action):
-        raise NotImplementedError("Implement observations")
-
-    def _get_obs(self, forces):
-        raise NotImplementedError("Implement observations")
-
-    def reset(self):
-        if self.record_video:
-            self.setup_record_video(self.task)
         if self.gpu and not self.gui:
             self.gui = True
             p.disconnect(self.id)
@@ -211,6 +212,50 @@ class AssistiveEnv(gym.Env):
             )
             self.util = Util(self.id, self.np_random)
             self.util.enable_gpu()
+            # reset the environment once, for providing consistent visual outputs
+            self.reset()
+
+    def get_viewpoints(self):
+        return self.view_matrices.keys()
+
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
+    def enable_gpu(self):
+        self.gpu = True
+
+    def step(self, action):
+        raise NotImplementedError("Implement observations")
+
+    def _get_obs(self, forces):
+        raise NotImplementedError("Implement observations")
+
+    def reset(self):
+        if self.record_video:
+            self.setup_record_video(self.task)
+        # if self.gpu and not self.gui:
+        #     self.gui = True
+        #     p.disconnect(self.id)
+        #     self.id = p.connect(
+        #         p.GUI,
+        #         options=(
+        #             "--background_color_red=0.8 --background_color_green=0.9 --background_color_blue=1.0 --width=%d"
+        #             " --height=%d"
+        #         )
+        #         % (self.width, self.height),
+        #     )
+
+        #     self.world_creation = WorldCreation(
+        #         self.id,
+        #         robot_type=self.robot_type,
+        #         task=self.task,
+        #         time_step=self.time_step,
+        #         np_random=self.np_random,
+        #         config=self.config,
+        #     )
+        #     self.util = Util(self.id, self.np_random)
+        #     self.util.enable_gpu()
 
     def config(self, tag, section=None):
         return float(self.configp[self.task if section is None else section][tag])
@@ -763,35 +808,36 @@ class AssistiveEnv(gym.Env):
         self.iteration = 0
 
     def setup_record_video(self, task_type=None):
-        if self.record_video:
-            now = datetime.datetime.now()
-            date = now.strftime("%Y-%m-%d_%H-%M-%S")
-            for view in self.view_matrices:
-                if self.video_writer[view]["writer"] is not None:
-                    self.video_writer[view]["writer"] = np.array(self.video_writer[view]["writer"])
-                    if task_type is not None:
-                        video_name = f"{self.video_writer[view]['name']}_{task_type}"
-                    else:
-                        video_name = self.video_writer[view]["name"]
-                    import cv2
+        self.record_video = True
+        if self.log_dir is None:
+            self.log_dir = os.path.join(
+                Path(os.path.realpath(__file__)).parent.parent.parent,
+                "logs",
+                f"{self.task}_{self.robot_type}",
+                "videos",
+                datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+            )
+            os.makedirs(self.log_dir, exist_ok=True)
+        now = datetime.datetime.now()
+        date = now.strftime("%Y-%m-%d_%H-%M-%S")
+        for view in self.view_matrices:
+            if self.video_writer[view]["writer"] is not None:
+                self.video_writer[view]["writer"] = np.array(self.video_writer[view]["writer"])
+                if task_type is not None:
+                    video_name = f"{self.video_writer[view]['name']}_{task_type}"
+                else:
+                    video_name = self.video_writer[view]["name"]
 
-                    writer = cv2.VideoWriter(
-                        f"{os.path.join(self.log_dir, video_name)}.mp4",
-                        cv2.VideoWriter_fourcc(*"mp4v"),
-                        20,
-                        (self.width, self.height),
-                    )
-                    for frame in self.video_writer[view]["writer"]:
-                        writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-                    writer.release()
-                self.video_writer[view] = {"name": f"{self.task}_{date}_{view}", "writer": []}
+                frames = [frame for frame in self.video_writer[view]["writer"]]
+                if len(frames) > 0:
+                    imageio.mimsave(f"{os.path.join(self.log_dir, video_name)}.mp4", frames, fps=20)
+            self.video_writer[view] = {"name": f"{self.task}_{date}_{view}", "writer": []}
 
     def record_video_frame(self):
-        if self.record_video:
-            for view in self.view_matrices:
-                frame, _ = self.get_camera_image_depth(view=view)
-                frame = np.reshape(frame, (self.height, self.width, 4))[:, :, :3]
-                self.video_writer[view]["writer"].append(frame)
+        for view in self.view_matrices:
+            frame, _ = self.get_camera_image_depth(view=view)
+            frame = np.reshape(frame, (self.height, self.width, 4))[:, :, :3]
+            self.video_writer[view]["writer"].append(frame)
 
     def update_targets(self):
         pass
