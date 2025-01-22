@@ -18,18 +18,42 @@ class DrinkingEnv(AssistiveEnv):
         obs = self._get_obs([cup_force_on_human], [robot_force_on_human, cup_force_on_human])
 
         # # Get human preferences
-        # preferences_score = self.human_preferences(end_effector_velocity=end_effector_velocity, total_force_on_human=robot_force_on_human, tool_force_at_target=cup_force_on_human, food_hit_human_reward=water_hit_human_reward, food_mouth_velocities=water_mouth_velocities)
+        # preferences_score = self.human_preferences(
+        #     end_effector_velocity=end_effector_velocity,
+        #     total_force_on_human=robot_force_on_human,
+        #     tool_force_at_target=cup_force_on_human,
+        #     food_hit_human_reward=water_hit_human_reward,
+        #     food_mouth_velocities=water_mouth_velocities,
+        # )
 
         # cup_pos, cup_orient = p.getBasePositionAndOrientation(self.cup, physicsClientId=self.id)
-        # cup_pos, cup_orient = p.multiplyTransforms(cup_pos, cup_orient, [0, 0.06, 0], p.getQuaternionFromEuler([np.pi/2.0, 0, 0], physicsClientId=self.id), physicsClientId=self.id)
-        # cup_top_center_pos, _ = p.multiplyTransforms(cup_pos, cup_orient, self.cup_top_center_offset, [0, 0, 0, 1], physicsClientId=self.id)
-        # reward_distance = -np.linalg.norm(self.target_pos - np.array(cup_top_center_pos)) # Penalize distances between top of cup and mouth
-        # reward_action = -np.sum(np.square(action)) # Penalize actions
+        # cup_pos, cup_orient = p.multiplyTransforms(
+        #     cup_pos,
+        #     cup_orient,
+        #     [0, 0.06, 0],
+        #     p.getQuaternionFromEuler([np.pi / 2.0, 0, 0], physicsClientId=self.id),
+        #     physicsClientId=self.id,
+        # )
+        # cup_top_center_pos, _ = p.multiplyTransforms(
+        #     cup_pos, cup_orient, self.cup_top_center_offset, [0, 0, 0, 1], physicsClientId=self.id
+        # )
+        # reward_distance = -np.linalg.norm(
+        #     self.target_pos - np.array(cup_top_center_pos)
+        # )  # Penalize distances between top of cup and mouth
+        # reward_action = -np.sum(np.square(action))  # Penalize actions
         # # Encourage robot to have a tilted end effector / cup
         # cup_euler = p.getEulerFromQuaternion(cup_orient, physicsClientId=self.id)
-        # reward_tilt = -abs(cup_euler[0] + np.pi/2) if self.robot_type == 'jaco' else -abs(cup_euler[0] - np.pi/2)
+        # reward_tilt = -abs(cup_euler[0] + np.pi / 2) if self.robot_type == "jaco" else -abs(cup_euler[0] - np.pi / 2)
 
-        # reward = self.config('distance_weight')*reward_distance + self.config('action_weight')*reward_action + self.config('cup_tilt_weight')*reward_tilt + self.config('drinking_reward_weight')*reward_water + preferences_score
+        # reward = (
+        #     self.config("distance_weight") * reward_distance
+        #     + self.config("action_weight") * reward_action
+        #     + self.config("cup_tilt_weight") * reward_tilt
+        #     + self.config("drinking_reward_weight") * reward_water
+        #     + preferences_score
+        # )
+        # # LLM GENERATED REWARD
+        # _, reward_info = self.compute_reward(action)
         reward, reward_info = self.compute_reward(action)
 
         # if self.gui and reward_water != 0:
@@ -126,7 +150,7 @@ class DrinkingEnv(AssistiveEnv):
         ]
         front_camera_kwargs = dict(
             camera_target=[0.1, 0, 0.9],
-            distance=1.1,
+            distance=1.2,
             rpy=[0, -60 if random_degrees[0] < 0 else -45, 45 if random_degrees[2] > 0 else -45],
             fov=45,
         )
@@ -315,14 +339,16 @@ class DrinkingEnv(AssistiveEnv):
 
         # Cup Distance Reward (r_cup_distance):
         #   Encourage moving the cup close to mouth via an exponential function
-        distance_sigma = 0.5
-        r_cup_distance = np.exp(-distance_to_mouth / distance_sigma)
+        # distance_sigma = 0.5
+        # r_cup_distance = np.exp(-distance_to_mouth / distance_sigma)
+        r_cup_distance = -distance_to_mouth
 
         # Cup Tilting Reward (r_cup_tilting):
         #   Encourage correct tilt angle near desired_tilt_angle
         tilt_diff = abs(current_tilt_angle - desired_tilt_angle)
-        tilt_sigma = 0.2
-        r_cup_tilting = np.exp(-(tilt_diff**2) / (tilt_sigma**2))
+        # tilt_sigma = 0.2
+        # r_cup_tilting = np.exp(-(tilt_diff**2) / (tilt_sigma**2))
+        r_cup_tilting = -tilt_diff
 
         # Spillage Penalty (r_spillage):
         #   water_hit_human_reward is negative if water spills on the human
@@ -334,7 +360,8 @@ class DrinkingEnv(AssistiveEnv):
 
         # Jerky Movement Penalty (r_jerky):
         #   Higher velocity => stronger negative
-        r_jerky = -(end_effector_velocity**2)
+        # r_jerky = -(end_effector_velocity**2)
+        r_jerky = -end_effector_velocity
 
         # -------------------------------------------------------
         # 3) TOTAL REWARD: Weighted Sum
