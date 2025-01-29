@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pybullet as p
-from gym import spaces
+from gymnasium.spaces import Dict, Box
 
 from .env import AssistiveEnv
 
@@ -20,29 +20,6 @@ class FeedingEnv(AssistiveEnv):
             obs_robot_len=25,
             obs_human_len=(23 if human_control else 0),
         )
-        reward_metadata = {
-            "food": 1.0,
-            "distance_mouth_target": 1.0,
-            "action": 0.1,
-            "high_target_forces": 0.1,
-            "velocity": 0.1,
-            "food_velocities": 1.0,
-            "food_hit_human": 1.0,
-        }
-        weight = 1.0
-        reward_space = {}
-        for term_name in reward_metadata:
-            weight = reward_metadata.get(term_name, weight)
-            if weight > 0:
-                low, high = 1e-10, reward_metadata[term_name]
-                # if weight >= 1.0:
-                #     low, high = 1e-10, reward_metadata[term_name]
-                # else:
-                #     low, high = 0, reward_metadata[term_name]
-            elif weight < 0:
-                low, high = -1e-0, -1e-10
-            reward_space[f"Reward/{term_name}"] = spaces.Box(low=low, high=high, shape=())
-        self.reward_space = spaces.Dict(reward_space)
 
     def step(self, action):
         self.take_step(
@@ -55,37 +32,39 @@ class FeedingEnv(AssistiveEnv):
 
         robot_force_on_human, spoon_force_on_human = self.get_total_force()
         total_force_on_human = robot_force_on_human + spoon_force_on_human
-        reward_food, food_mouth_velocities, food_hit_human_reward = self.get_food_rewards()
-        end_effector_velocity = np.linalg.norm(p.getBaseVelocity(self.spoon, physicsClientId=self.id)[0])
+        # reward_food, food_mouth_velocities, food_hit_human_reward = self.get_food_rewards()
+        # end_effector_velocity = np.linalg.norm(p.getBaseVelocity(self.spoon, physicsClientId=self.id)[0])  # noqa
         obs = self._get_obs([spoon_force_on_human], [robot_force_on_human, spoon_force_on_human])
 
-        # Get human preferences
-        preferences_score, pref_info = self.human_preferences(
-            end_effector_velocity=end_effector_velocity,
-            total_force_on_human=robot_force_on_human,
-            tool_force_at_target=spoon_force_on_human,
-            food_hit_human_reward=food_hit_human_reward,
-            food_mouth_velocities=food_mouth_velocities,
-            verbose=True,
-        )
+        # # Get human preferences
+        # preferences_score, pref_info = self.human_preferences(
+        #     end_effector_velocity=end_effector_velocity,
+        #     total_force_on_human=robot_force_on_human,
+        #     tool_force_at_target=spoon_force_on_human,
+        #     food_hit_human_reward=food_hit_human_reward,
+        #     food_mouth_velocities=food_mouth_velocities,
+        #     verbose=True,
+        # )
 
-        spoon_pos, spoon_orient = p.getBasePositionAndOrientation(self.spoon, physicsClientId=self.id)
-        spoon_pos = np.array(spoon_pos)
+        # spoon_pos, spoon_orient = p.getBasePositionAndOrientation(self.spoon, physicsClientId=self.id)
+        # spoon_pos = np.array(spoon_pos)
 
-        reward_distance_mouth_target = -np.linalg.norm(
-            self.target_pos - spoon_pos
-        )  # Penalize robot for distance between the spoon and human mouth.
-        reward_action = -np.sum(np.square(action))  # Penalize actions
+        # reward_distance_mouth_target = -np.linalg.norm(
+        #     self.target_pos - spoon_pos
+        # )  # Penalize robot for distance between the spoon and human mouth.
+        # reward_action = -np.sum(np.square(action))  # Penalize actions
 
-        reward = (
-            self.config("distance_weight") * reward_distance_mouth_target
-            + self.config("action_weight") * reward_action
-            + self.config("food_reward_weight") * reward_food
-            + preferences_score
-        )
+        # reward = (
+        #     self.config("distance_weight") * reward_distance_mouth_target
+        #     + self.config("action_weight") * reward_action
+        #     + self.config("food_reward_weight") * reward_food
+        #     + preferences_score
+        # )
 
         # if self.gui and reward_food != 0:
-        #     print('Task success:', self.task_success, 'Food reward:', reward_food)
+        #     print("Task success:", self.task_success, "Food reward:", reward_food)
+
+        reward, reward_info = self.compute_reward(action)
 
         info = {
             "total_force_on_human": total_force_on_human,
@@ -96,17 +75,21 @@ class FeedingEnv(AssistiveEnv):
             "obs_human_len": self.obs_human_len,
         }
 
-        info.update({
-            "Reward/food": reward_food,
-            "Reward/distance_mouth_target": reward_distance_mouth_target,
-            "Reward/action": reward_action,
-            # Human preferences
-            "Reward/high_target_forces": pref_info["Reward/high_target_forces"],
-            "Reward/velocity": pref_info["Reward/velocity"],
-            "Reward/force_nontarget": pref_info["Reward/force_nontarget"],
-            "Reward/food_velocities": pref_info["Reward/food_velocities"],
-            "Reward/food_hit_human": food_hit_human_reward,
-        })
+        info.update(reward_info)
+
+        # info.update(
+        #     {
+        #         "r_food": reward_food,
+        #         "r_distance_mouth_target": reward_distance_mouth_target,
+        #         "r_action": reward_action,
+        #         # Human preferences
+        #         "r_high_target_forces": pref_info["Reward/high_target_forces"],
+        #         "r_velocity": pref_info["Reward/velocity"],
+        #         "r_force_nontarget": pref_info["Reward/force_nontarget"],
+        #         "r_food_velocities": pref_info["Reward/food_velocities"],
+        #         "r_food_hit_human": food_hit_human_reward,
+        #     }
+        # )
         done = False
 
         if self.record_video:
@@ -478,6 +461,9 @@ class FeedingEnv(AssistiveEnv):
         food_radius = 0.005
         food_collision = p.createCollisionShape(p.GEOM_SPHERE, radius=food_radius, physicsClientId=self.id)
         food_visual = -1
+        # food_visual = p.createVisualShape(
+        #     p.GEOM_SPHERE, radius=food_radius, rgbaColor=[1, 0, 1, 1], physicsClientId=self.id
+        # )
         food_mass = 0.001
         food_count = 2 * 2 * 2
         batch_positions = []
@@ -519,3 +505,104 @@ class FeedingEnv(AssistiveEnv):
         )
         self.target_pos = np.array(target_pos)
         p.resetBasePositionAndOrientation(self.target, self.target_pos, [0, 0, 0, 1], physicsClientId=self.id)
+
+    @property
+    def reward_space(self):
+        """
+        Returns the range of permissible weights for each reward term.
+        The primary term is fixed to [1.0, 1.0].
+        The others range from [0.0, X], where X < 1.0.
+        """
+        return Dict(
+            {
+                "r_food": Box(low=1.0, high=1.0, shape=(), dtype=float),
+                "r_distance_mouth_target": Box(low=0.0, high=1.0, shape=(), dtype=float),
+                "r_food_velocities": Box(low=0.0, high=1.0, shape=(), dtype=float),
+                "r_force_nontarget": Box(low=0.0, high=1.0, shape=(), dtype=float),
+                "r_velocity": Box(low=0.0, high=0.5, shape=(), dtype=float),
+                "r_food_hit_human": Box(low=0.0, high=0.5, shape=(), dtype=float),
+                "r_action": Box(low=0.0, high=0.1, shape=(), dtype=float),
+            }
+        )
+
+    @property
+    def default_reward_weights(self):
+        """
+        Default weight configuration for each reward term.
+        """
+        return {
+            "r_food": 1.0,  # Primary (fixed)
+            "r_distance_mouth_target": 1.0,  # Secondary
+            "r_food_velocities": 1.0,  # Secondary
+            "r_force_nontarget": 0.01,  # Secondary
+            "r_velocity": 0.25,  # Secondary
+            "r_food_hit_human": 1.0,  # Secondary
+            "r_action": 0.01,  # Secondary
+        }
+
+    def compute_reward(self, action):
+        """
+        Computes the total reward as a weighted sum of different criteria:
+        1) food_in_mouth: Reward or penalty from get_food_rewards()
+        2) distance_to_mouth: Negative distance between spoon and mouth
+        3) tilt_alignment: Negative deviation of spoon orientation from a desired tilt
+        4) spoon_force_on_human: Negative force on human
+        5) end_effector_velocity: Negative spoon velocity for smooth movement
+        6) food_hit_person: Negative if any food particle hits person incorrectly
+
+        Returns:
+            total_reward (float): The scalar reward
+            rewards_dict (dict): A dictionary of each reward term
+        """
+        # 1) Food-based rewards and penalties
+        food_reward, food_mouth_velocities, food_hit_human_reward = self.get_food_rewards()
+
+        # 2) Contact force with the human
+        robot_force_on_human, spoon_force_on_human = self.get_total_force()
+        total_force_on_human = robot_force_on_human + spoon_force_on_human
+
+        # 3) Food velocities
+        food_velocities = np.sum(food_mouth_velocities) if len(food_mouth_velocities) > 0 else 0
+
+        # 4) Smoothness of motion (end-effector velocity)
+        end_effector_velocity = np.linalg.norm(p.getBaseVelocity(self.spoon, physicsClientId=self.id)[0])
+
+        # 5) Distance between spoon and mouth
+        spoon_pos, spoon_orient = p.getBasePositionAndOrientation(self.spoon, physicsClientId=self.id)
+        spoon_pos = np.array(spoon_pos)
+        distance_spoon_to_mouth = np.linalg.norm(spoon_pos - self.target_pos)
+
+        # 6) Action smoothness
+        action_smoothness = -np.sum(np.square(action))
+
+        # Prepare each raw reward/penalty term
+        r_food_in_mouth = food_reward  # May be positive (food success) or negative (spillage)
+        r_distance_to_mouth = -distance_spoon_to_mouth  # Negative distance => smaller distance => higher reward
+        r_spoon_force_on_human = -total_force_on_human  # Negative for contact force
+        r_end_effector_velocity = -end_effector_velocity  # Negative for fast movement
+        r_food_hit_person = food_hit_human_reward  # Already negative if hits the person
+        r_food_velocities = -food_velocities  # Negative for fast velocities
+        r_action_smoothness = action_smoothness  # Already negative for noisy actions
+
+        # Calculate final weighted sum
+        total_reward = 0.0
+        total_reward += self.default_reward_weights["r_food"] * r_food_in_mouth
+        total_reward += self.default_reward_weights["r_food_velocities"] * r_food_velocities
+        total_reward += self.default_reward_weights["r_distance_mouth_target"] * r_distance_to_mouth
+        total_reward += self.default_reward_weights["r_force_nontarget"] * r_spoon_force_on_human
+        total_reward += self.default_reward_weights["r_velocity"] * r_end_effector_velocity
+        total_reward += self.default_reward_weights["r_food_hit_human"] * r_food_hit_person
+        total_reward += self.default_reward_weights["r_action"] * r_action_smoothness
+
+        # Return the total reward and a dictionary of each term
+        rewards_dict = {
+            "r_food": r_food_in_mouth,
+            "r_distance_mouth_target": r_distance_to_mouth,
+            "r_action": r_action_smoothness,
+            "r_velocity": r_end_effector_velocity,
+            "r_force_nontarget": r_spoon_force_on_human,
+            "r_food_velocities": r_food_velocities,
+            "r_food_hit_human": r_food_hit_person,
+        }
+
+        return total_reward, rewards_dict
