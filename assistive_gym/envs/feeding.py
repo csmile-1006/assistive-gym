@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pybullet as p
-from gymnasium.spaces import Dict, Box
+from gymnasium.spaces import Box, Dict
 
 from .env import AssistiveEnv
 
@@ -513,17 +513,15 @@ class FeedingEnv(AssistiveEnv):
         The primary term is fixed to [1.0, 1.0].
         The others range from [0.0, X], where X < 1.0.
         """
-        return Dict(
-            {
-                "r_food": Box(low=1.0, high=1.0, shape=(), dtype=float),
-                "r_distance_mouth_target": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_food_velocities": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_force_nontarget": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_velocity": Box(low=0.0, high=0.5, shape=(), dtype=float),
-                "r_food_hit_human": Box(low=0.0, high=0.5, shape=(), dtype=float),
-                "r_action": Box(low=0.0, high=0.1, shape=(), dtype=float),
-            }
-        )
+        return Dict({
+            "r_food": Box(low=1.0, high=1.0, shape=(), dtype=float),
+            "r_distance_mouth_target": Box(low=1.0, high=1.0, shape=(), dtype=float),
+            "r_food_velocities": Box(low=0.0, high=1.0, shape=(), dtype=float),
+            "r_force_nontarget": Box(low=0.0, high=1.0, shape=(), dtype=float),
+            "r_velocity": Box(low=0.0, high=0.5, shape=(), dtype=float),
+            "r_food_hit_human": Box(low=0.0, high=1.0, shape=(), dtype=float),
+            "r_action": Box(low=0.0, high=0.1, shape=(), dtype=float),
+        })
 
     @property
     def default_reward_weights(self):
