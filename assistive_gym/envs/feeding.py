@@ -460,10 +460,10 @@ class FeedingEnv(AssistiveEnv):
         spoon_pos = np.array(spoon_pos)
         food_radius = 0.005
         food_collision = p.createCollisionShape(p.GEOM_SPHERE, radius=food_radius, physicsClientId=self.id)
-        food_visual = -1
-        # food_visual = p.createVisualShape(
-        #     p.GEOM_SPHERE, radius=food_radius, rgbaColor=[1, 0, 1, 1], physicsClientId=self.id
-        # )
+        # food_visual = -1
+        food_visual = p.createVisualShape(
+            p.GEOM_SPHERE, radius=food_radius, rgbaColor=[1, 0, 1, 1], physicsClientId=self.id
+        )
         food_mass = 0.001
         food_count = 2 * 2 * 2
         batch_positions = []
