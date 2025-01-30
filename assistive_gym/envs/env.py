@@ -89,7 +89,7 @@ class AssistiveEnv(gym.Env):
         self.log_dir = None
         # self.width = 1920 // 4
         # self.height = 1080 // 4
-        self.width, self.height = 1920 // 5, 1080 // 5
+        self.width, self.height = 1920 // 6, 1080 // 6
 
         # Configure the camera with each viewpoint (front, right) using setup_camera_rpy
         camera_kwargs = dict(
@@ -100,7 +100,7 @@ class AssistiveEnv(gym.Env):
             front_camera_kwargs = dict(
                 camera_target=[-0.2, 0, 0.75],
                 distance=1.1,
-                rpy=[0, -50, 0],
+                rpy=[0, -50, 45],
                 fov=60,
             )
         elif self.robot_type == "pr2":
