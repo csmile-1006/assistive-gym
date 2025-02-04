@@ -522,6 +522,7 @@ class FeedingEnv(AssistiveEnv):
                 "r_food_hit_human": Box(low=0.0, high=1.0, shape=(), dtype=float),
                 "r_force_nontarget": Box(low=0.0, high=0.1, shape=(), dtype=float),
                 "r_action": Box(low=0.0, high=0.1, shape=(), dtype=float),
+                "r_return_home": Box(low=0.5, high=1.0, shape=(), dtype=float),
             }
         )
 
@@ -538,6 +539,7 @@ class FeedingEnv(AssistiveEnv):
             "r_food_hit_human": 1.0,  # Secondary
             "r_force_nontarget": 0.01,  # Secondary
             "r_action": 0.01,  # Secondary
+            "r_return_home": 0.5,  # Secondary
         }
 
     def compute_reward(self, action):
@@ -575,6 +577,24 @@ class FeedingEnv(AssistiveEnv):
         # 6) Action smoothness
         action_smoothness = -np.sum(np.square(action))
 
+        # 7) return to home configuration
+        # Current right-arm joint positions (used for measuring distance to "home" pose).
+        robot_right_joint_states = p.getJointStates(
+            self.robot, self.robot_right_arm_joint_indices, physicsClientId=self.id
+        )
+        robot_right_joint_positions = np.array([x[0] for x in robot_right_joint_states])
+
+        # Reward for returning to the home configuration after all food is fed.
+        # In this simple example, we measure the norm of the right-arm joint positions
+        # from 0, and give a shaped reward if the distance is small.
+        if self.task_success == int(self.total_food_count * self.config("task_success_threshold")):  # All food has been fed
+            dist_to_home = np.linalg.norm(robot_right_joint_positions)
+            # Give a small shaped reward: clamp below 0 to ensure positivity only if close
+            tmp_home = 1.0 - dist_to_home
+            r_return_home = 10.0 * tmp_home if tmp_home > 0.0 else 0.0
+        else:
+            r_return_home = 0.0
+
         # Prepare each raw reward/penalty term
         r_food_in_mouth = food_reward  # May be positive (food success) or negative (spillage)
         r_distance_to_mouth = -distance_spoon_to_mouth  # Negative distance => smaller distance => higher reward
@@ -583,6 +603,7 @@ class FeedingEnv(AssistiveEnv):
         r_food_hit_person = food_hit_human_reward  # Already negative if hits the person
         r_food_velocities = -food_velocities  # Negative for fast velocities
         r_action_smoothness = action_smoothness  # Already negative for noisy actions
+        r_return_home = r_return_home  # Reward for returning to home
 
         # Calculate final weighted sum
         total_reward = 0.0
@@ -593,6 +614,7 @@ class FeedingEnv(AssistiveEnv):
         total_reward += self.default_reward_weights["r_velocity"] * r_end_effector_velocity
         total_reward += self.default_reward_weights["r_food_hit_human"] * r_food_hit_person
         total_reward += self.default_reward_weights["r_action"] * r_action_smoothness
+        total_reward += self.default_reward_weights["r_return_home"] * r_return_home
 
         # Return the total reward and a dictionary of each term
         rewards_dict = {
@@ -603,6 +625,7 @@ class FeedingEnv(AssistiveEnv):
             "r_force_nontarget": r_spoon_force_on_human,
             "r_food_velocities": r_food_velocities,
             "r_food_hit_human": r_food_hit_person,
+            "r_return_home": r_return_home,
         }
 
         return total_reward, rewards_dict
