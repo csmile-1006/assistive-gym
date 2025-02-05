@@ -599,7 +599,7 @@ class FeedingEnv(AssistiveEnv):
         # Reward for returning to the home configuration after all food is fed.
         # In this simple example, we measure the norm of the right-arm joint positions
         # from 0, and give a shaped reward if the distance is small.
-        if self.task_success == int(self.total_food_count * self.config("task_success_threshold")):  # All food has been fed
+        if self.task_success >= int(self.total_food_count * self.config("task_success_threshold")):  # All food has been fed
             dist_to_home = np.linalg.norm(robot_right_joint_positions - self.robot_right_arm_init_joint_positions)
             # Give a small shaped reward: clamp below 0 to ensure positivity only if close
             tmp_home = 1.0 - dist_to_home
