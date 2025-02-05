@@ -220,6 +220,18 @@ class FeedingEnv(AssistiveEnv):
         )
         self.robot_lower_limits = self.robot_lower_limits[self.robot_right_arm_joint_indices]
         self.robot_upper_limits = self.robot_upper_limits[self.robot_right_arm_joint_indices]
+        # define robot arm init positions
+        self.robot_left_arm_init_joint_positions = [0, 0, 0, 0, 0, 0, 0]
+        self.robot_right_arm_init_joint_positions = [0, 0, 0, 0, 0, 0, 0]
+
+        if self.robot_type == "pr2":
+            self.robot_left_arm_init_joint_positions = [1.75, 1.25, 1.5, -0.5, 1, 0, 1]
+            self.robot_right_arm_init_joint_positions = [-1.75, 1.25, -1.5, -0.5, -1, 0, -1]
+
+        if self.robot_type == "baxter":
+            self.robot_left_arm_init_joint_positions = [0.75, 1, 0.5, 0.5, 1, -0.5, 0]
+            self.robot_right_arm_init_joint_positions = [-0.75, 1, -0.5, 0.5, -1, -0.5, 0]
+
         self.reset_robot_joints()
         if self.robot_type == "jaco":
             wheelchair_pos, wheelchair_orient = p.getBasePositionAndOrientation(
@@ -588,7 +600,7 @@ class FeedingEnv(AssistiveEnv):
         # In this simple example, we measure the norm of the right-arm joint positions
         # from 0, and give a shaped reward if the distance is small.
         if self.task_success == int(self.total_food_count * self.config("task_success_threshold")):  # All food has been fed
-            dist_to_home = np.linalg.norm(robot_right_joint_positions)
+            dist_to_home = np.linalg.norm(robot_right_joint_positions - self.robot_right_arm_init_joint_positions)
             # Give a small shaped reward: clamp below 0 to ensure positivity only if close
             tmp_home = 1.0 - dist_to_home
             r_return_home = 10.0 * tmp_home if tmp_home > 0.0 else 0.0
