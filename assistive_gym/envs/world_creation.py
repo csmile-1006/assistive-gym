@@ -4,7 +4,16 @@ import pybullet as p
 from .human_creation import HumanCreation
 
 class WorldCreation:
-    def __init__(self, pid, robot_type='pr2', task='scratch_itch', time_step=0.02, np_random=None, config=None):
+    def __init__(
+        self,
+        pid,
+        robot_type="pr2",
+        task="scratch_itch",
+        time_step=0.02,
+        np_random=None,
+        config=None,
+        randomness_values=None,
+    ):
         self.id = pid
         self.robot_type = robot_type
         self.task = task
@@ -16,6 +25,16 @@ class WorldCreation:
         self.human_limit_scale = 1.0
         self.human_strength = 1.0
         self.human_tremors = np.zeros(10)
+        if randomness_values is not None:
+            self.randomness_values = randomness_values
+        else:
+            self.randomness_values = [
+                self.np_random.choice(["male", "female"]),
+                self.np_random.choice(["none", "limits", "weakness", "tremor"]),
+                self.np_random.choice(["none", "limits", "weakness"]),
+                self.np_random.uniform(0.5, 1.0),
+                self.np_random.uniform(0.25, 1.0),
+            ]
 
     def create_new_world(self, furniture_type='wheelchair', static_human_base=False, human_impairment='random', print_joints=False, gender='random'):
         p.resetSimulation(physicsClientId=self.id)
@@ -54,15 +73,15 @@ class WorldCreation:
 
         # Choose gender
         if gender not in ['male', 'female']:
-            gender = self.np_random.choice(['male', 'female'])
+            gender = self.randomness_values[0]
         # Specify human impairments
         if human_impairment == 'random':
-            human_impairment = self.np_random.choice(['none', 'limits', 'weakness', 'tremor'])
+            human_impairment = self.randomness_values[1]
         elif human_impairment == 'no_tremor':
-            human_impairment = self.np_random.choice(['none', 'limits', 'weakness'])
+            human_impairment = self.randomness_values[2]
         self.human_impairment = human_impairment
-        self.human_limit_scale = 1.0 if human_impairment != 'limits' else self.np_random.uniform(0.5, 1.0)
-        self.human_strength = 1.0 if human_impairment != 'weakness' else self.np_random.uniform(0.25, 1.0)
+        self.human_limit_scale = 1.0 if human_impairment != "limits" else self.randomness_values[3]
+        self.human_strength = 1.0 if human_impairment != "weakness" else self.randomness_values[4]
         human, human_lower_limits, human_upper_limits = self.init_human(static_human_base, self.human_limit_scale, print_joints, gender=gender)
 
         p.setTimeStep(self.time_step, physicsClientId=self.id)
@@ -102,7 +121,6 @@ class WorldCreation:
         upper_limits = []
         for j in range(p.getNumJoints(body, physicsClientId=self.id)):
             joint_info = p.getJointInfo(body, j, physicsClientId=self.id)
-            joint_name = joint_info[1]
             joint_pos = joint_positions[j]
             lower_limit = joint_info[8]
             upper_limit = joint_info[9]
@@ -121,6 +139,7 @@ class WorldCreation:
         return lower_limits, upper_limits
 
     def setup_human_joints(self, human, joints_positions, controllable_joints, use_static_joints=True, human_reactive_force=None, human_reactive_gain=0.05):
+        # this part is not fixable in advance, but not using tremor would be the easiest.
         if self.human_impairment != 'tremor':
             self.human_tremors = np.zeros(len(controllable_joints))
         elif len(controllable_joints) == 4:

@@ -231,7 +231,7 @@ class AssistiveEnv(gym.Env):
     def _get_obs(self, forces):
         raise NotImplementedError("Implement observations")
 
-    def reset(self):
+    def reset(self, randomness_values=None):
         if self.record_video:
             self.setup_record_video(self.task)
         # if self.gpu and not self.gui:
@@ -246,14 +246,15 @@ class AssistiveEnv(gym.Env):
         #         % (self.width, self.height),
         #     )
 
-        #     self.world_creation = WorldCreation(
-        #         self.id,
-        #         robot_type=self.robot_type,
-        #         task=self.task,
-        #         time_step=self.time_step,
-        #         np_random=self.np_random,
-        #         config=self.config,
-        #     )
+        self.world_creation = WorldCreation(
+            self.id,
+            robot_type=self.robot_type,
+            task=self.task,
+            time_step=self.time_step,
+            np_random=self.np_random,
+            config=self.config,
+            randomness_values=randomness_values,
+        )
         #     self.util = Util(self.id, self.np_random)
         #     self.util.enable_gpu()
 
@@ -635,6 +636,9 @@ class AssistiveEnv(gym.Env):
         random_position=0.5,
         human_joint_indices=None,
         human_joint_positions=None,
+        fixed_random_x_position=None,
+        fixed_random_y_position=None,
+        fixed_random_rotation=None,
     ):
         # Continually randomize the robot base position and orientation
         # Select best base pose according to number of goals reached and manipulability
@@ -657,16 +661,24 @@ class AssistiveEnv(gym.Env):
         best_pose_count = 0
         while iteration < attempts or best_position is None:
             iteration += 1
-            random_pos = np.array([
-                self.np_random.uniform(-random_position if right_side else 0, 0 if right_side else random_position),
-                self.np_random.uniform(-random_position, random_position),
-                0,
-            ])
+            random_pos = np.array(
+                [
+                    self.np_random.uniform(-random_position if right_side else 0, 0 if right_side else random_position)
+                    if fixed_random_x_position is None
+                    else fixed_random_x_position,
+                    self.np_random.uniform(-random_position, random_position)
+                    if fixed_random_y_position is None
+                    else fixed_random_y_position,
+                    0,
+                ]
+            )
             random_orientation = p.getQuaternionFromEuler(
                 [
                     base_euler_orient[0],
                     base_euler_orient[1],
-                    base_euler_orient[2] + np.deg2rad(self.np_random.uniform(-random_rotation, random_rotation)),
+                    base_euler_orient[2] + np.deg2rad(self.np_random.uniform(-random_rotation, random_rotation))
+                    if fixed_random_rotation is None
+                    else base_euler_orient[2] + fixed_random_rotation,
                 ],
                 physicsClientId=self.id,
             )

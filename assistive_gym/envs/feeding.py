@@ -196,8 +196,35 @@ class FeedingEnv(AssistiveEnv):
 
         return np.concatenate([robot_obs, human_obs]).ravel()
 
-    def reset(self):
-        super().reset()
+    @property
+    def randomness_values(self):
+        return self._randomness_values
+
+    @randomness_values.setter
+    def randomness_values(self, value):
+        self._randomness_values = value
+
+    def reset(self, randomness_values=None):
+        self._randomness_values = randomness_values
+        if self._randomness_values is None:
+            self._randomness_values = [
+                self.np_random.choice(["male", "female"]),
+                self.np_random.choice(["none", "limits", "weakness", "tremor"]),
+                self.np_random.choice(["none", "limits", "weakness"]),
+                self.np_random.uniform(0.5, 1.0),
+                self.np_random.uniform(0.25, 1.0),
+                self.np_random.uniform(np.deg2rad(-30), np.deg2rad(30)),
+                self.np_random.uniform(np.deg2rad(-30), np.deg2rad(30)),
+                self.np_random.uniform(np.deg2rad(-30), np.deg2rad(30)),
+                self.np_random.uniform(-0.05, 0.05),
+                self.np_random.uniform(-0.05, 0.05),
+                self.np_random.uniform(-0.05, 0.05, size=3),
+                self.np_random.uniform(-0.5, 0),
+                self.np_random.uniform(-0.5, 0.5),
+                np.deg2rad(self.np_random.uniform(-30, 30)),
+            ]
+
+        super().reset(randomness_values=self._randomness_values)
         self.setup_timing()
         self.task_success = 0
         (
@@ -214,7 +241,7 @@ class FeedingEnv(AssistiveEnv):
         ) = self.world_creation.create_new_world(
             furniture_type="wheelchair",
             static_human_base=True,
-            human_impairment="random",
+            human_impairment="no_tremor",
             print_joints=False,
             gender="random",
         )
@@ -254,9 +281,9 @@ class FeedingEnv(AssistiveEnv):
             (38, np.deg2rad(80)),
         ]
         joints_positions += [
-            (21, self.np_random.uniform(np.deg2rad(-30), np.deg2rad(30))),
-            (22, self.np_random.uniform(np.deg2rad(-30), np.deg2rad(30))),
-            (23, self.np_random.uniform(np.deg2rad(-30), np.deg2rad(30))),
+            (21, self._randomness_values[5]),
+            (22, self._randomness_values[6]),
+            (23, self._randomness_values[7]),
         ]
         self.human_controllable_joint_indices = [20, 21, 22, 23]
         self.world_creation.setup_human_joints(
@@ -297,7 +324,7 @@ class FeedingEnv(AssistiveEnv):
             shapeType=p.GEOM_MESH, fileName=collision_filename, meshScale=[self.bowl_scale] * 3, physicsClientId=self.id
         )
         bowl_pos = np.array([-0.15, -0.55, 0.75]) + np.array(
-            [self.np_random.uniform(-0.05, 0.05), self.np_random.uniform(-0.05, 0.05), 0]
+            [self._randomness_values[8], self._randomness_values[9], 0]
         )
         self.bowl = p.createMultiBody(
             baseMass=0.1,
@@ -353,7 +380,7 @@ class FeedingEnv(AssistiveEnv):
             physicsClientId=self.id,
         )
 
-        target_pos = np.array(bowl_pos) + np.array([0, -0.1, 0.4]) + self.np_random.uniform(-0.05, 0.05, size=3)
+        target_pos = np.array(bowl_pos) + np.array([0, -0.1, 0.4]) + self.randomness_values[10]
         if self.robot_type == "pr2":
             target_orient = p.getQuaternionFromEuler([np.pi / 2.0, 0, 0], physicsClientId=self.id)
             self.position_robot_toc(
@@ -371,6 +398,9 @@ class FeedingEnv(AssistiveEnv):
                 check_env_collisions=False,
                 human_joint_indices=self.human_controllable_joint_indices,
                 human_joint_positions=self.target_human_joint_positions,
+                fixed_random_x_position=self.randomness_values[11],
+                fixed_random_y_position=self.randomness_values[12],
+                fixed_random_rotation=self.randomness_values[13],
             )
             self.world_creation.set_gripper_open_position(self.robot, position=0.03, left=False, set_instantly=True)
             self.spoon = self.world_creation.init_tool(
@@ -426,6 +456,9 @@ class FeedingEnv(AssistiveEnv):
                     check_env_collisions=False,
                     human_joint_indices=self.human_controllable_joint_indices,
                     human_joint_positions=self.target_human_joint_positions,
+                    fixed_random_x_position=self.randomness_values[11],
+                    fixed_random_y_position=self.randomness_values[12],
+                    fixed_random_rotation=self.randomness_values[13],
                 )
             else:
                 self.position_robot_toc(
@@ -443,6 +476,9 @@ class FeedingEnv(AssistiveEnv):
                     check_env_collisions=False,
                     human_joint_indices=self.human_controllable_joint_indices,
                     human_joint_positions=self.target_human_joint_positions,
+                    fixed_random_x_position=self.randomness_values[11],
+                    fixed_random_y_position=self.randomness_values[12],
+                    fixed_random_rotation=self.randomness_values[13],
                 )
             self.world_creation.set_gripper_open_position(self.robot, position=0.0, left=False, set_instantly=True)
             self.spoon = self.world_creation.init_tool(
