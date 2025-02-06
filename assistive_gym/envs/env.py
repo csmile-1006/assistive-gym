@@ -135,7 +135,7 @@ class AssistiveEnv(gym.Env):
             side_camera_kwargs = dict(
                 camera_target=[0.0, 0, 0.75],
                 distance=1.5,
-                rpy=[0, -60, -90],
+                rpy=[0, -60, 90],
                 fov=45,
             )
         elif self.robot_type == "pr2":
@@ -173,12 +173,12 @@ class AssistiveEnv(gym.Env):
 
         self.view_matrices = {
             "front": front_view_matrix,
-            # "side": side_view_matrix,
+            "side": side_view_matrix,
             # "top": top_view_matrix,
         }
         self.projection_matrices = {
             "front": front_projection_matrix,
-            # "side": side_projection_matrix,
+            "side": side_projection_matrix,
             # "top": top_projection_matrix,
         }
         self.video_writer = {key: {"name": None, "writer": None} for key in self.view_matrices.keys()}

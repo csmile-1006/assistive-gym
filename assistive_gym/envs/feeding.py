@@ -530,11 +530,11 @@ class FeedingEnv(AssistiveEnv):
                 "r_food": Box(low=0.5, high=1.0, shape=(), dtype=float),
                 "r_distance_mouth_target": Box(low=0.5, high=1.0, shape=(), dtype=float),
                 "r_food_velocities": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_velocity": Box(low=0.0, high=0.5, shape=(), dtype=float),
+                "r_velocity": Box(low=0.0, high=1.0, shape=(), dtype=float),
                 "r_food_hit_human": Box(low=0.0, high=1.0, shape=(), dtype=float),
                 "r_force_nontarget": Box(low=0.0, high=0.1, shape=(), dtype=float),
                 "r_action": Box(low=0.0, high=0.1, shape=(), dtype=float),
-                "r_return_home": Box(low=0.5, high=1.0, shape=(), dtype=float),
+                "r_return_home": Box(low=0.0, high=1.0, shape=(), dtype=float),
             }
         )
 
@@ -599,13 +599,11 @@ class FeedingEnv(AssistiveEnv):
         # Reward for returning to the home configuration after all food is fed.
         # In this simple example, we measure the norm of the right-arm joint positions
         # from 0, and give a shaped reward if the distance is small.
-        if self.task_success >= int(self.total_food_count * self.config("task_success_threshold")):  # All food has been fed
+        if self.task_success == self.total_food_count:
             dist_to_home = np.linalg.norm(robot_right_joint_positions - self.robot_right_arm_init_joint_positions)
             # Give a small shaped reward: clamp below 0 to ensure positivity only if close
-            tmp_home = 1.0 - dist_to_home
-            r_return_home = 10.0 * tmp_home if tmp_home > 0.0 else 0.0
         else:
-            r_return_home = 0.0
+            dist_to_home = 0.0
 
         # Prepare each raw reward/penalty term
         r_food_in_mouth = food_reward  # May be positive (food success) or negative (spillage)
@@ -615,7 +613,7 @@ class FeedingEnv(AssistiveEnv):
         r_food_hit_person = food_hit_human_reward  # Already negative if hits the person
         r_food_velocities = -food_velocities  # Negative for fast velocities
         r_action_smoothness = action_smoothness  # Already negative for noisy actions
-        r_return_home = r_return_home  # Reward for returning to home
+        r_return_home = -dist_to_home  # Reward for returning to home
 
         # Calculate final weighted sum
         total_reward = 0.0
