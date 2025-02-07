@@ -1,21 +1,20 @@
 import configparser
 import datetime
+import logging
 import os
 import time
-import logging
 from pathlib import Path
 
 import gym
+import imageio
 import numpy as np
 import pybullet as p
 import pybullet_data  # noqa
 from gym import spaces
 from gym.utils import seeding
-import imageio
 
 from .util import Util
 from .world_creation import WorldCreation
-
 
 logging.getLogger("imageio_ffmpeg").setLevel(logging.ERROR)
 
@@ -246,15 +245,15 @@ class AssistiveEnv(gym.Env):
         #         % (self.width, self.height),
         #     )
 
-        self.world_creation = WorldCreation(
-            self.id,
-            robot_type=self.robot_type,
-            task=self.task,
-            time_step=self.time_step,
-            np_random=self.np_random,
-            config=self.config,
-            randomness_values=randomness_values,
-        )
+        # self.world_creation = WorldCreation(
+        #     self.id,
+        #     robot_type=self.robot_type,
+        #     task=self.task,
+        #     time_step=self.time_step,
+        #     np_random=self.np_random,
+        #     config=self.config,
+        #     randomness_values=randomness_values,
+        # )
         #     self.util = Util(self.id, self.np_random)
         #     self.util.enable_gpu()
 
@@ -661,24 +660,28 @@ class AssistiveEnv(gym.Env):
         best_pose_count = 0
         while iteration < attempts or best_position is None:
             iteration += 1
-            random_pos = np.array(
-                [
+            random_pos = np.array([
+                (
                     self.np_random.uniform(-random_position if right_side else 0, 0 if right_side else random_position)
                     if fixed_random_x_position is None
-                    else fixed_random_x_position,
+                    else fixed_random_x_position
+                ),
+                (
                     self.np_random.uniform(-random_position, random_position)
                     if fixed_random_y_position is None
-                    else fixed_random_y_position,
-                    0,
-                ]
-            )
+                    else fixed_random_y_position
+                ),
+                0,
+            ])
             random_orientation = p.getQuaternionFromEuler(
                 [
                     base_euler_orient[0],
                     base_euler_orient[1],
-                    base_euler_orient[2] + np.deg2rad(self.np_random.uniform(-random_rotation, random_rotation))
-                    if fixed_random_rotation is None
-                    else base_euler_orient[2] + fixed_random_rotation,
+                    (
+                        base_euler_orient[2] + np.deg2rad(self.np_random.uniform(-random_rotation, random_rotation))
+                        if fixed_random_rotation is None
+                        else base_euler_orient[2] + fixed_random_rotation
+                    ),
                 ],
                 physicsClientId=self.id,
             )
