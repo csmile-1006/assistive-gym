@@ -220,17 +220,6 @@ class FeedingEnv(AssistiveEnv):
         )
         self.robot_lower_limits = self.robot_lower_limits[self.robot_right_arm_joint_indices]
         self.robot_upper_limits = self.robot_upper_limits[self.robot_right_arm_joint_indices]
-        # define robot arm init positions
-        self.robot_left_arm_init_joint_positions = [0, 0, 0, 0, 0, 0, 0]
-        self.robot_right_arm_init_joint_positions = [0, 0, 0, 0, 0, 0, 0]
-
-        if self.robot_type == "pr2":
-            self.robot_left_arm_init_joint_positions = [1.75, 1.25, 1.5, -0.5, 1, 0, 1]
-            self.robot_right_arm_init_joint_positions = [-1.75, 1.25, -1.5, -0.5, -1, 0, -1]
-
-        if self.robot_type == "baxter":
-            self.robot_left_arm_init_joint_positions = [0.75, 1, 0.5, 0.5, 1, -0.5, 0]
-            self.robot_right_arm_init_joint_positions = [-0.75, 1, -0.5, 0.5, -1, -0.5, 0]
 
         self.reset_robot_joints()
         if self.robot_type == "jaco":
@@ -356,7 +345,7 @@ class FeedingEnv(AssistiveEnv):
         target_pos = np.array(bowl_pos) + np.array([0, -0.1, 0.4]) + self.np_random.uniform(-0.05, 0.05, size=3)
         if self.robot_type == "pr2":
             target_orient = p.getQuaternionFromEuler([np.pi / 2.0, 0, 0], physicsClientId=self.id)
-            self.position_robot_toc(
+            _, _, default_start_joint_positions = self.position_robot_toc(
                 self.robot,
                 54,
                 [(target_pos, target_orient), (self.target_pos, None)],
@@ -411,7 +400,7 @@ class FeedingEnv(AssistiveEnv):
         else:
             target_orient = p.getQuaternionFromEuler(np.array([np.pi / 2.0, 0, np.pi / 2.0]), physicsClientId=self.id)
             if self.robot_type == "baxter":
-                self.position_robot_toc(
+                _, _, default_start_joint_positions = self.position_robot_toc(
                     self.robot,
                     26,
                     [(target_pos, target_orient)],
@@ -428,7 +417,7 @@ class FeedingEnv(AssistiveEnv):
                     human_joint_positions=self.target_human_joint_positions,
                 )
             else:
-                self.position_robot_toc(
+                _, _, default_start_joint_positions = self.position_robot_toc(
                     self.robot,
                     19,
                     [(target_pos, target_orient), (self.target_pos, None)],
@@ -453,6 +442,7 @@ class FeedingEnv(AssistiveEnv):
                 left=False,
                 maximal=False,
             )
+        self.robot_right_arm_init_joint_positions = default_start_joint_positions[0]
 
         p.resetBasePositionAndOrientation(
             self.bowl,
@@ -599,7 +589,7 @@ class FeedingEnv(AssistiveEnv):
         # Reward for returning to the home configuration after all food is fed.
         # In this simple example, we measure the norm of the right-arm joint positions
         # from 0, and give a shaped reward if the distance is small.
-        if self.task_success == self.total_food_count:
+        if self.task_success >= self.total_food_count * self.config("task_success_threshold"):
             dist_to_home = np.linalg.norm(robot_right_joint_positions - self.robot_right_arm_init_joint_positions)
             # Give a small shaped reward: clamp below 0 to ensure positivity only if close
         else:
