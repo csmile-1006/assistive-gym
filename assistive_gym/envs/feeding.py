@@ -200,10 +200,6 @@ class FeedingEnv(AssistiveEnv):
     def randomness_values(self):
         return self._randomness_values
 
-    @randomness_values.setter
-    def randomness_values(self, value):
-        self._randomness_values = value
-
     def reset(self, randomness_values=None):
         self._randomness_values = randomness_values
         if self._randomness_values is None:
@@ -219,9 +215,9 @@ class FeedingEnv(AssistiveEnv):
                 self.np_random.uniform(-0.05, 0.05),
                 self.np_random.uniform(-0.05, 0.05),
                 self.np_random.uniform(-0.05, 0.05, size=3),
-                self.np_random.uniform(-0.5, 0),
-                self.np_random.uniform(-0.5, 0.5),
-                np.deg2rad(self.np_random.uniform(-30, 30)),
+                None,
+                None,
+                None,
             ]
 
         super().reset(randomness_values=self._randomness_values)
@@ -369,10 +365,17 @@ class FeedingEnv(AssistiveEnv):
             physicsClientId=self.id,
         )
 
-        target_pos = np.array(bowl_pos) + np.array([0, -0.1, 0.4]) + self.randomness_values[10]
+        target_pos = np.array(bowl_pos) + np.array([0, -0.1, 0.4]) + self._randomness_values[10]
         if self.robot_type == "pr2":
             target_orient = p.getQuaternionFromEuler([np.pi / 2.0, 0, 0], physicsClientId=self.id)
-            _, _, default_start_joint_positions = self.position_robot_toc(
+            (
+                _,
+                _,
+                default_start_joint_positions,
+                fixed_random_x_position,
+                fixed_random_y_position,
+                fixed_random_rotation,
+            ) = self.position_robot_toc(
                 self.robot,
                 54,
                 [(target_pos, target_orient), (self.target_pos, None)],
@@ -387,9 +390,6 @@ class FeedingEnv(AssistiveEnv):
                 check_env_collisions=False,
                 human_joint_indices=self.human_controllable_joint_indices,
                 human_joint_positions=self.target_human_joint_positions,
-                fixed_random_x_position=self.randomness_values[11],
-                fixed_random_y_position=self.randomness_values[12],
-                fixed_random_rotation=self.randomness_values[13],
             )
             self.world_creation.set_gripper_open_position(self.robot, position=0.03, left=False, set_instantly=True)
             self.spoon = self.world_creation.init_tool(
@@ -430,7 +430,14 @@ class FeedingEnv(AssistiveEnv):
         else:
             target_orient = p.getQuaternionFromEuler(np.array([np.pi / 2.0, 0, np.pi / 2.0]), physicsClientId=self.id)
             if self.robot_type == "baxter":
-                _, _, default_start_joint_positions = self.position_robot_toc(
+                (
+                    _,
+                    _,
+                    default_start_joint_positions,
+                    fixed_random_x_position,
+                    fixed_random_y_position,
+                    fixed_random_rotation,
+                ) = self.position_robot_toc(
                     self.robot,
                     26,
                     [(target_pos, target_orient)],
@@ -445,12 +452,16 @@ class FeedingEnv(AssistiveEnv):
                     check_env_collisions=False,
                     human_joint_indices=self.human_controllable_joint_indices,
                     human_joint_positions=self.target_human_joint_positions,
-                    fixed_random_x_position=self.randomness_values[11],
-                    fixed_random_y_position=self.randomness_values[12],
-                    fixed_random_rotation=self.randomness_values[13],
                 )
             else:
-                _, _, default_start_joint_positions = self.position_robot_toc(
+                (
+                    _,
+                    _,
+                    default_start_joint_positions,
+                    fixed_random_x_position,
+                    fixed_random_y_position,
+                    fixed_random_rotation,
+                ) = self.position_robot_toc(
                     self.robot,
                     19,
                     [(target_pos, target_orient), (self.target_pos, None)],
@@ -465,9 +476,6 @@ class FeedingEnv(AssistiveEnv):
                     check_env_collisions=False,
                     human_joint_indices=self.human_controllable_joint_indices,
                     human_joint_positions=self.target_human_joint_positions,
-                    fixed_random_x_position=self.randomness_values[11],
-                    fixed_random_y_position=self.randomness_values[12],
-                    fixed_random_rotation=self.randomness_values[13],
                 )
             self.world_creation.set_gripper_open_position(self.robot, position=0.0, left=False, set_instantly=True)
             self.spoon = self.world_creation.init_tool(
@@ -478,6 +486,13 @@ class FeedingEnv(AssistiveEnv):
                 left=False,
                 maximal=False,
             )
+
+        if all([elem is None for elem in self._randomness_values[11:14]]):
+            self._randomness_values[11:14] = [
+                fixed_random_x_position,
+                fixed_random_y_position,
+                fixed_random_rotation,
+            ]
         self.robot_right_arm_init_joint_positions = default_start_joint_positions[0]
 
         p.resetBasePositionAndOrientation(
@@ -551,18 +566,16 @@ class FeedingEnv(AssistiveEnv):
         The primary term is fixed to [1.0, 1.0].
         The others range from [0.0, X], where X < 1.0.
         """
-        return Dict(
-            {
-                "r_food": Box(low=0.5, high=1.0, shape=(), dtype=float),
-                "r_distance_mouth_target": Box(low=0.5, high=1.0, shape=(), dtype=float),
-                "r_food_velocities": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_velocity": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_food_hit_human": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_force_nontarget": Box(low=0.0, high=0.1, shape=(), dtype=float),
-                "r_action": Box(low=0.0, high=0.1, shape=(), dtype=float),
-                "r_return_home": Box(low=0.0, high=1.0, shape=(), dtype=float),
-            }
-        )
+        return Dict({
+            "r_food": Box(low=0.5, high=1.0, shape=(), dtype=float),
+            "r_distance_mouth_target": Box(low=0.5, high=1.0, shape=(), dtype=float),
+            "r_food_velocities": Box(low=0.0, high=1.0, shape=(), dtype=float),
+            "r_velocity": Box(low=0.0, high=1.0, shape=(), dtype=float),
+            "r_food_hit_human": Box(low=0.0, high=1.0, shape=(), dtype=float),
+            "r_force_nontarget": Box(low=0.0, high=0.1, shape=(), dtype=float),
+            "r_action": Box(low=0.0, high=0.1, shape=(), dtype=float),
+            "r_return_home": Box(low=0.0, high=1.0, shape=(), dtype=float),
+        })
 
     @property
     def default_reward_weights(self):

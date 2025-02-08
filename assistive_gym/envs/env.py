@@ -680,7 +680,7 @@ class AssistiveEnv(gym.Env):
                     (
                         base_euler_orient[2] + np.deg2rad(self.np_random.uniform(-random_rotation, random_rotation))
                         if fixed_random_rotation is None
-                        else base_euler_orient[2] + fixed_random_rotation
+                        else fixed_random_rotation
                     ),
                 ],
                 physicsClientId=self.id,
@@ -808,7 +808,11 @@ class AssistiveEnv(gym.Env):
         if human_joint_positions is not None:
             for h, pos in zip(human_joint_indices, human_joint_positions):
                 p.resetJointState(self.human, jointIndex=h, targetValue=pos, targetVelocity=0, physicsClientId=self.id)
-        return best_position, best_orientation, best_start_joint_poses
+
+        x_pos = best_position[0]
+        y_pos = best_position[1]
+        rot = best_orientation[2]
+        return best_position, best_orientation, best_start_joint_poses, x_pos, y_pos, rot
 
     def slow_time(self):
         # Slow down time so that the simulation matches real time
