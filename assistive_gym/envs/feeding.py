@@ -214,7 +214,7 @@ class FeedingEnv(AssistiveEnv):
                 self.np_random.uniform(np.deg2rad(-30), np.deg2rad(30)),
                 self.np_random.uniform(-0.05, 0.05),
                 self.np_random.uniform(-0.05, 0.05),
-                self.np_random.uniform(-0.05, 0.05, size=3),
+                self.np_random.uniform(-0.05, 0.05, size=3).tolist(),
                 None,
                 None,
                 None,
@@ -487,8 +487,8 @@ class FeedingEnv(AssistiveEnv):
                 maximal=False,
             )
 
-        if all([elem is None for elem in self._randomness_values[11:14]]):
-            self._randomness_values[11:14] = [
+        if all([elem is None for elem in self._randomness_values[-3:]]):
+            self._randomness_values[-3:] = [
                 fixed_random_x_position,
                 fixed_random_y_position,
                 fixed_random_rotation,
