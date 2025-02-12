@@ -250,7 +250,7 @@ class DrinkingEnv(AssistiveEnv):
         last_water_id = p.createMultiBody(baseMass=water_mass, baseCollisionShapeIndex=water_collision, baseVisualShapeIndex=water_visual, basePosition=[0, 0, 0], useMaximalCoordinates=False, batchPositions=batch_positions, physicsClientId=self.id)
         self.waters = list(range(last_water_id-water_count+1, last_water_id+1))
         for w in self.waters:
-            p.changeVisualShape(w, -1, rgbaColor=[0.25, 0.5, 1, 1], physicsClientId=self.id)
+            p.changeVisualShape(w, -1, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
         self.total_water_count = len(self.waters)
 
         # Enable rendering
