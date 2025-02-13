@@ -753,7 +753,7 @@ class DrinkingEnv(AssistiveEnv):
                 "r_cup_tilting": Box(low=0.0, high=0.5, shape=(), dtype=float),
                 "r_spillage": Box(low=0.0, high=1.0, shape=(), dtype=float),
                 "r_contact": Box(low=0.0, high=0.1, shape=(), dtype=float),
-                "r_jerky": Box(low=0.0, high=0.1, shape=(), dtype=float),
+                "r_jerky": Box(low=0.0, high=1.0, shape=(), dtype=float),
                 "r_return_home": Box(low=0.0, high=1.0, shape=(), dtype=float),
                 "r_action_smoothness": Box(low=0.0, high=0.1, shape=(), dtype=float),
             }
