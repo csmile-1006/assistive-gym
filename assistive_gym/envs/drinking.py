@@ -657,13 +657,14 @@ class DrinkingEnv(AssistiveEnv):
         )
         robot_right_joint_positions = np.array([x[0] for x in robot_right_joint_states])
 
-        if self.task_success >= int(
-            self.task_success >= self.total_water_count * self.config("task_success_threshold")
-        ):
+        if self.task_success >= int(self.total_water_count * self.config("task_success_threshold")):
             dist_to_home = np.linalg.norm(robot_right_joint_positions - self.robot_right_arm_init_joint_positions)
             # Give a small shaped reward: clamp below 0 to ensure positivity only if close
         else:
             dist_to_home = 0.0
+
+        # g) action smoothness
+        action_smoothness = np.linalg.norm(self.action)
 
         # -------------------------------------------------------
         # 2) SUB-TERMS (REWARDS = + , PENALTIES = -)
@@ -703,6 +704,10 @@ class DrinkingEnv(AssistiveEnv):
         #   Lower distance to home => stronger negative
         r_return_home = -dist_to_home
 
+        # Action Smoothness Reward (r_action_smoothness):
+        #   Lower action smoothness => stronger negative
+        r_action_smoothness = -action_smoothness
+
         # -------------------------------------------------------
         # 3) TOTAL REWARD: Weighted Sum
         #    Use self.default_reward_weights[...] for each term
@@ -715,6 +720,7 @@ class DrinkingEnv(AssistiveEnv):
             + self.default_reward_weights["r_contact"] * r_contact
             + self.default_reward_weights["r_jerky"] * r_jerky
             + self.default_reward_weights["r_return_home"] * r_return_home
+            + self.default_reward_weights["r_action_smoothness"] * r_action_smoothness
         )
 
         # Return both the total reward and a dict of unweighted terms for logging
@@ -726,6 +732,7 @@ class DrinkingEnv(AssistiveEnv):
             "r_contact": r_contact,
             "r_jerky": r_jerky,
             "r_return_home": r_return_home,
+            "r_action_smoothness": r_action_smoothness,
         }
 
         return total_reward, info
@@ -737,17 +744,20 @@ class DrinkingEnv(AssistiveEnv):
           - Primary term (r_water_transfer) has fixed range [1.0, 1.0].
           - Other terms have non-negative ranges < 1.0 (e.g., up to 0.5).
         """
-        return Dict({
-            # Primary reward term (fixed at 1.0)
-            "r_water_transfer": Box(low=0.5, high=1.0, shape=(), dtype=float),
-            # Other terms: non-negative, strictly less than primary
-            "r_cup_distance": Box(low=0.5, high=1.0, shape=(), dtype=float),
-            "r_cup_tilting": Box(low=0.0, high=0.5, shape=(), dtype=float),
-            "r_spillage": Box(low=0.0, high=0.5, shape=(), dtype=float),
-            "r_contact": Box(low=0.0, high=0.1, shape=(), dtype=float),
-            "r_jerky": Box(low=0.0, high=0.1, shape=(), dtype=float),
-            "r_return_home": Box(low=0.0, high=1.0, shape=(), dtype=float),
-        })
+        return Dict(
+            {
+                # Primary reward term (fixed at 1.0)
+                "r_water_transfer": Box(low=0.5, high=1.0, shape=(), dtype=float),
+                # Other terms: non-negative, strictly less than primary
+                "r_cup_distance": Box(low=0.5, high=1.0, shape=(), dtype=float),
+                "r_cup_tilting": Box(low=0.0, high=0.5, shape=(), dtype=float),
+                "r_spillage": Box(low=0.0, high=1.0, shape=(), dtype=float),
+                "r_contact": Box(low=0.0, high=0.1, shape=(), dtype=float),
+                "r_jerky": Box(low=0.0, high=0.1, shape=(), dtype=float),
+                "r_return_home": Box(low=0.0, high=1.0, shape=(), dtype=float),
+                "r_action_smoothness": Box(low=0.0, high=0.1, shape=(), dtype=float),
+            }
+        )
 
     @property
     def default_reward_weights(self):
@@ -758,9 +768,10 @@ class DrinkingEnv(AssistiveEnv):
         return {
             "r_water_transfer": 1.0,  # primary reward (fixed)
             "r_cup_distance": 1.0,
-            "r_cup_tilting": 0.2,
-            "r_spillage": 0.5,
-            "r_contact": 0.3,
+            "r_cup_tilting": 0.1,
+            "r_spillage": 1.0,
+            "r_contact": 0.01,
             "r_jerky": 0.25,
             "r_return_home": 0.5,
+            "r_action_smoothness": 0.01,
         }
