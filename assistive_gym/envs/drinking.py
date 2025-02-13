@@ -233,17 +233,17 @@ class DrinkingEnv(AssistiveEnv):
             ]
 
         super().reset(randomness_values=self._randomness_values)
-        front_camera_kwargs = dict(
-            camera_target=[0.1, 0, 0.9],
-            distance=1.2,
-            rpy=[0, -60 if self._randomness_values[5] < 0 else -45, 45 if self._randomness_values[7] > 0 else -45],
-            fov=45,
-        )
-        front_view_matrix, front_projection_matrix = self.setup_camera_rpy(
-            **front_camera_kwargs, camera_width=self.width, camera_height=self.height
-        )
-        self.view_matrices["front"] = front_view_matrix
-        self.projection_matrices["front"] = front_projection_matrix
+        # front_camera_kwargs = dict(
+        #     camera_target=[0.1, 0, 0.9],
+        #     distance=1.2,
+        #     rpy=[0, -60 if self._randomness_values[5] < 0 else -45, 45 if self._randomness_values[7] > 0 else -45],
+        #     fov=45,
+        # )
+        # front_view_matrix, front_projection_matrix = self.setup_camera_rpy(
+        #     **front_camera_kwargs, camera_width=self.width, camera_height=self.height
+        # )
+        # self.view_matrices["front"] = front_view_matrix
+        # self.projection_matrices["front"] = front_projection_matrix
 
         self.setup_timing()
         self.task_success = 0

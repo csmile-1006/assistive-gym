@@ -121,9 +121,9 @@ class AssistiveEnv(gym.Env):
                 )
         elif self.robot_type in ["jaco", "sawyer"]:
             front_camera_kwargs = dict(
-                camera_target=[0.2, 0, 0.75],
-                distance=1.3,
-                rpy=[0, -45, 0],
+                camera_target=[-0.2, 0, 0.75],
+                distance=1.0,
+                rpy=[0, -50, 45],
                 fov=60,
             )
         else:
