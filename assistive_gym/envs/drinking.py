@@ -664,7 +664,7 @@ class DrinkingEnv(AssistiveEnv):
             dist_to_home = 0.0
 
         # g) action smoothness
-        action_smoothness = np.linalg.norm(self.action)
+        action_smoothness = np.linalg.norm(action)
 
         # -------------------------------------------------------
         # 2) SUB-TERMS (REWARDS = + , PENALTIES = -)
