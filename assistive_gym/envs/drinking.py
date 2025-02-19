@@ -58,9 +58,9 @@ class DrinkingEnv(AssistiveEnv):
         #     self.target_pos - np.array(cup_top_center_pos)
         # )  # Penalize distances between top of cup and mouth
         # reward_action = -np.sum(np.square(action))  # Penalize actions
-        # # Encourage robot to have a tilted end effector / cup
-        # cup_euler = p.getEulerFromQuaternion(cup_orient, physicsClientId=self.id)
-        # reward_tilt = -abs(cup_euler[0] + np.pi / 2) if self.robot_type == "jaco" else -abs(cup_euler[0] - np.pi / 2)
+        # Encourage robot to have a tilted end effector / cup
+        cup_euler = p.getEulerFromQuaternion(cup_orient, physicsClientId=self.id)
+        reward_tilt = -abs(cup_euler[0] + np.pi / 2) if self.robot_type == "jaco" else -abs(cup_euler[0] - np.pi / 2)
 
         # reward = (
         #     self.config("distance_weight") * reward_distance
@@ -744,20 +744,18 @@ class DrinkingEnv(AssistiveEnv):
           - Primary term (r_water_transfer) has fixed range [1.0, 1.0].
           - Other terms have non-negative ranges < 1.0 (e.g., up to 0.5).
         """
-        return Dict(
-            {
-                # Primary reward term (fixed at 1.0)
-                "r_water_transfer": Box(low=1.0, high=1.0, shape=(), dtype=float),
-                # Other terms: non-negative, strictly less than primary
-                "r_cup_distance": Box(low=1.0, high=1.0, shape=(), dtype=float),
-                "r_cup_tilting": Box(low=0.0, high=0.5, shape=(), dtype=float),
-                "r_spillage": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_contact": Box(low=0.0, high=0.1, shape=(), dtype=float),
-                "r_jerky": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_return_home": Box(low=0.0, high=1.0, shape=(), dtype=float),
-                "r_action_smoothness": Box(low=0.0, high=0.1, shape=(), dtype=float),
-            }
-        )
+        return Dict({
+            # Primary reward term (fixed at 1.0)
+            "r_water_transfer": Box(low=1.0, high=1.0, shape=(), dtype=float),
+            # Other terms: non-negative, strictly less than primary
+            "r_cup_distance": Box(low=1.0, high=1.0, shape=(), dtype=float),
+            "r_cup_tilting": Box(low=0.0, high=0.1, shape=(), dtype=float),
+            "r_spillage": Box(low=0.0, high=1.0, shape=(), dtype=float),
+            "r_contact": Box(low=0.0, high=0.1, shape=(), dtype=float),
+            "r_jerky": Box(low=0.0, high=1.0, shape=(), dtype=float),
+            "r_return_home": Box(low=0.0, high=1.0, shape=(), dtype=float),
+            "r_action_smoothness": Box(low=0.0, high=0.1, shape=(), dtype=float),
+        })
 
     @property
     def default_reward_weights(self):
