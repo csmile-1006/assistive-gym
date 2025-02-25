@@ -120,12 +120,20 @@ class AssistiveEnv(gym.Env):
                     fov=60,
                 )
         elif self.robot_type in ["jaco", "sawyer"]:
-            front_camera_kwargs = dict(
-                camera_target=[-0.2, 0, 0.75],
-                distance=1.0,
-                rpy=[0, -50, 45],
-                fov=60,
-            )
+            if self.task == "drinking":
+                front_camera_kwargs = dict(
+                    camera_target=[-0.2, 0, 1.0],
+                    distance=1.0,
+                    rpy=[0, -50, -250],
+                    fov=30,
+                )
+            else:
+                front_camera_kwargs = dict(
+                    camera_target=[-0.2, 0, 0.75],
+                    distance=1.0,
+                    rpy=[0, -50, 45],
+                    fov=60,
+                )
         else:
             raise ValueError(f"Unknown robot type: {self.robot_type}")
         front_camera_kwargs.update(camera_kwargs)

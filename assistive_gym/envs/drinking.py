@@ -30,9 +30,9 @@ class DrinkingEnv(AssistiveEnv):
 
         robot_force_on_human, cup_force_on_human = self.get_total_force()
         total_force_on_human = robot_force_on_human + cup_force_on_human
+        obs = self._get_obs([cup_force_on_human], [robot_force_on_human, cup_force_on_human])
         # reward_water, water_mouth_velocities, water_hit_human_reward = self.get_water_rewards()
         # end_effector_velocity = np.linalg.norm(p.getBaseVelocity(self.cup, physicsClientId=self.id)[0])
-        obs = self._get_obs([cup_force_on_human], [robot_force_on_human, cup_force_on_human])
 
         # # Get human preferences
         # preferences_score = self.human_preferences(
@@ -58,7 +58,7 @@ class DrinkingEnv(AssistiveEnv):
         #     self.target_pos - np.array(cup_top_center_pos)
         # )  # Penalize distances between top of cup and mouth
         # reward_action = -np.sum(np.square(action))  # Penalize actions
-        # Encourage robot to have a tilted end effector / cup
+        # # Encourage robot to have a tilted end effector / cup
         # cup_euler = p.getEulerFromQuaternion(cup_orient, physicsClientId=self.id)
         # reward_tilt = -abs(cup_euler[0] + np.pi / 2) if self.robot_type == "jaco" else -abs(cup_euler[0] - np.pi / 2)
 
