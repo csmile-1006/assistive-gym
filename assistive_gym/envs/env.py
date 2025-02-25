@@ -198,30 +198,30 @@ class AssistiveEnv(gym.Env):
         self.human_joint_lower_limits = None
         self.human_joint_upper_limits = None
 
-        if self.gpu and not self.gui:
-            self.gui = True
-            p.disconnect(self.id)
-            self.id = p.connect(
-                p.GUI,
-                options=(
-                    "--background_color_red=0.8 --background_color_green=0.9 --background_color_blue=1.0 --width=%d"
-                    " --height=%d"
-                )
-                % (self.width, self.height),
-            )
+        # if self.gpu and not self.gui:
+        #     self.gui = True
+        #     p.disconnect(self.id)
+        #     self.id = p.connect(
+        #         p.GUI,
+        #         options=(
+        #             "--background_color_red=0.8 --background_color_green=0.9 --background_color_blue=1.0 --width=%d"
+        #             " --height=%d"
+        #         )
+        #         % (self.width, self.height),
+        #     )
 
-            self.world_creation = WorldCreation(
-                self.id,
-                robot_type=self.robot_type,
-                task=self.task,
-                time_step=self.time_step,
-                np_random=self.np_random,
-                config=self.config,
-            )
-            self.util = Util(self.id, self.np_random)
-            self.util.enable_gpu()
-            # reset the environment once, for providing consistent visual outputs
-            self.reset()
+        #     self.world_creation = WorldCreation(
+        #         self.id,
+        #         robot_type=self.robot_type,
+        #         task=self.task,
+        #         time_step=self.time_step,
+        #         np_random=self.np_random,
+        #         config=self.config,
+        #     )
+        #     self.util = Util(self.id, self.np_random)
+        #     self.util.enable_gpu()
+        #     # reset the environment once, for providing consistent visual outputs
+        #     self.reset()
 
     def get_viewpoints(self):
         return self.view_matrices.keys()
@@ -242,29 +242,29 @@ class AssistiveEnv(gym.Env):
     def reset(self, randomness_values=None):
         if self.record_video:
             self.setup_record_video(self.task)
-        # if self.gpu and not self.gui:
-        #     self.gui = True
-        #     p.disconnect(self.id)
-        #     self.id = p.connect(
-        #         p.GUI,
-        #         options=(
-        #             "--background_color_red=0.8 --background_color_green=0.9 --background_color_blue=1.0 --width=%d"
-        #             " --height=%d"
-        #         )
-        #         % (self.width, self.height),
-        #     )
+        if self.gpu and not self.gui:
+            self.gui = True
+            p.disconnect(self.id)
+            self.id = p.connect(
+                p.GUI,
+                options=(
+                    "--background_color_red=0.8 --background_color_green=0.9 --background_color_blue=1.0 --width=%d"
+                    " --height=%d"
+                )
+                % (self.width, self.height),
+            )
 
-        # self.world_creation = WorldCreation(
-        #     self.id,
-        #     robot_type=self.robot_type,
-        #     task=self.task,
-        #     time_step=self.time_step,
-        #     np_random=self.np_random,
-        #     config=self.config,
-        #     randomness_values=randomness_values,
-        # )
-        #     self.util = Util(self.id, self.np_random)
-        #     self.util.enable_gpu()
+        self.world_creation = WorldCreation(
+            self.id,
+            robot_type=self.robot_type,
+            task=self.task,
+            time_step=self.time_step,
+            np_random=self.np_random,
+            config=self.config,
+            randomness_values=randomness_values,
+        )
+        self.util = Util(self.id, self.np_random)
+        self.util.enable_gpu()
 
     def config(self, tag, section=None):
         return float(self.configp[self.task if section is None else section][tag])
