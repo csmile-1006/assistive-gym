@@ -344,7 +344,8 @@ class WorldCreation:
             elif self.task == 'arm_manipulation':
                 visual_filename = os.path.join(self.directory, 'arm_manipulation', 'arm_manipulation_scooper.obj')
                 collision_filename = os.path.join(self.directory, 'arm_manipulation', 'arm_manipulation_scooper_vhacd.obj')
-            tool_visual = p.createVisualShape(shapeType=p.GEOM_MESH, fileName=visual_filename, meshScale=mesh_scale, rgbaColor=[1, 1, 1, alpha], physicsClientId=self.id)
+            # tool_visual = p.createVisualShape(shapeType=p.GEOM_MESH, fileName=visual_filename, meshScale=mesh_scale, rgbaColor=[1, 1, 1, alpha], physicsClientId=self.id)
+            tool_visual = p.createVisualShape(shapeType=p.GEOM_MESH, fileName=visual_filename, meshScale=mesh_scale, rgbaColor=[1, 1, 1, 0], physicsClientId=self.id)
             tool_collision = p.createCollisionShape(shapeType=p.GEOM_MESH, fileName=collision_filename, meshScale=mesh_scale, physicsClientId=self.id)
             tool = p.createMultiBody(baseMass=0.01, baseCollisionShapeIndex=tool_collision, baseVisualShapeIndex=tool_visual, basePosition=transform_pos, baseOrientation=transform_orient, useMaximalCoordinates=maximal, physicsClientId=self.id)
         if left:

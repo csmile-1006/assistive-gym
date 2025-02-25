@@ -124,7 +124,8 @@ class AssistiveEnv(gym.Env):
                 front_camera_kwargs = dict(
                     camera_target=[-0.2, 0, 1.0],
                     distance=1.0,
-                    rpy=[0, -50, -250],
+                    # rpy=[0, -50, -250],
+                    rpy=[0, -50, -260],
                     fov=30,
                 )
             else:
