@@ -122,12 +122,20 @@ class AssistiveEnv(gym.Env):
         elif self.robot_type in ["jaco", "sawyer"]:
             if self.task == "drinking":
                 front_camera_kwargs = dict(
-                    camera_target=[-0.2, 0, 1.0],
-                    distance=1.0,
-                    # rpy=[0, -50, -250],
-                    rpy=[0, -50, -260],
-                    fov=30,
+                    camera_target=[-0.2, 0, 0.75],
+                    distance=1.2,
+                    # rpy=[0, -50, -260], # previous value after transparent cups.
+                    # rpy=[0, -60, 45],
+                    rpy=[0, -60, 45],
+                    fov=45,
                 )
+                # front_camera_kwargs = dict(
+                #     camera_target=[-0.2, 0, 0.75],
+                #     distance=1.5,
+                #     # rpy=[0, -50, -260], # previous value after transparent cups.
+                #     rpy=[0, -60, 90],
+                #     fov=45,
+                # )
             else:
                 front_camera_kwargs = dict(
                     camera_target=[-0.2, 0, 0.75],
