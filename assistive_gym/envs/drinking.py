@@ -749,7 +749,7 @@ class DrinkingEnv(AssistiveEnv):
             "r_water_transfer": Box(low=1.0, high=1.0, shape=(), dtype=float),
             # Other terms: non-negative, strictly less than primary
             "r_cup_distance": Box(low=1.0, high=1.0, shape=(), dtype=float),
-            "r_cup_tilting": Box(low=0.0, high=0.1, shape=(), dtype=float),
+            "r_cup_tilting": Box(low=0.0, high=0.5, shape=(), dtype=float),
             "r_spillage": Box(low=0.0, high=1.0, shape=(), dtype=float),
             "r_contact": Box(low=0.0, high=0.1, shape=(), dtype=float),
             "r_jerky": Box(low=0.0, high=1.0, shape=(), dtype=float),
