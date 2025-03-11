@@ -616,7 +616,6 @@ class DrinkingEnv(AssistiveEnv):
         # -------------------------------------------------------
         # a) Forces
         robot_force_on_human, cup_force_on_human = self.get_total_force()
-        total_force_on_human = robot_force_on_human + cup_force_on_human
 
         # b) Water-based rewards from environment
         #    (assuming self.get_water_rewards() is available)
@@ -630,7 +629,7 @@ class DrinkingEnv(AssistiveEnv):
         # d) Distance to mouth for cup positioning
         #    Cup top center is accessible via self.cup_top_center_offset transforms
         cup_pos, cup_orient = p.getBasePositionAndOrientation(self.cup, physicsClientId=self.id)
-        offset_cup_pos, offset_cup_orient = p.multiplyTransforms(
+        cup_pos, cup_orient = p.multiplyTransforms(
             cup_pos,
             cup_orient,
             [0, 0.06, 0],
@@ -638,11 +637,7 @@ class DrinkingEnv(AssistiveEnv):
             physicsClientId=self.id,
         )
         cup_top_center_pos, _ = p.multiplyTransforms(
-            offset_cup_pos,
-            offset_cup_orient,
-            self.cup_top_center_offset,
-            [0, 0, 0, 1],
-            physicsClientId=self.id,
+            cup_pos, cup_orient, self.cup_top_center_offset, [0, 0, 0, 1], physicsClientId=self.id
         )
         distance_to_mouth = np.linalg.norm(self.target_pos - np.array(cup_top_center_pos))
 
