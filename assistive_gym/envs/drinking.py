@@ -622,7 +622,7 @@ class DrinkingEnv(AssistiveEnv):
         #    (assuming self.get_water_rewards() is available)
         #      reward_water: positive when water enters mouth
         #      water_hit_human_reward: negative if water spills on human
-        reward_water, _, water_hit_human_reward = self.get_water_rewards()
+        reward_water, water_mouth_velocities, water_hit_human_reward = self.get_water_rewards()
 
         # c) End-effector (cup) velocity for jerk/smoothness penalty
         end_effector_velocity = np.linalg.norm(p.getBaseVelocity(self.cup, physicsClientId=self.id)[0])
@@ -644,7 +644,7 @@ class DrinkingEnv(AssistiveEnv):
             [0, 0, 0, 1],
             physicsClientId=self.id,
         )
-        distance_to_mouth = np.linalg.norm(np.array(cup_top_center_pos) - self.target_pos)
+        distance_to_mouth = np.linalg.norm(self.target_pos - np.array(cup_top_center_pos))
 
         # e) Cup orientation for tilt
         cup_euler = p.getEulerFromQuaternion(cup_orient, physicsClientId=self.id)
@@ -693,7 +693,7 @@ class DrinkingEnv(AssistiveEnv):
 
         # Contact Penalty (r_contact):
         #   Force on human => negative reward
-        r_contact = -total_force_on_human
+        r_contact = -robot_force_on_human
 
         # Jerky Movement Penalty (r_jerky):
         #   Higher velocity => stronger negative
@@ -708,6 +708,8 @@ class DrinkingEnv(AssistiveEnv):
         #   Lower action smoothness => stronger negative
         r_action_smoothness = -action_smoothness
 
+        r_water_mouth_velocities = -np.sum(water_mouth_velocities) if len(water_mouth_velocities) > 0 else 0
+
         # -------------------------------------------------------
         # 3) TOTAL REWARD: Weighted Sum
         #    Use self.default_reward_weights[...] for each term
@@ -721,6 +723,7 @@ class DrinkingEnv(AssistiveEnv):
             + self.default_reward_weights["r_jerky"] * r_jerky
             + self.default_reward_weights["r_return_home"] * r_return_home
             + self.default_reward_weights["r_action_smoothness"] * r_action_smoothness
+            + self.default_reward_weights["r_water_mouth_velocities"] * r_water_mouth_velocities
         )
 
         # Return both the total reward and a dict of unweighted terms for logging
@@ -733,6 +736,7 @@ class DrinkingEnv(AssistiveEnv):
             "r_jerky": r_jerky,
             "r_return_home": r_return_home,
             "r_action_smoothness": r_action_smoothness,
+            "r_water_mouth_velocities": r_water_mouth_velocities,
         }
 
         return total_reward, info
@@ -755,6 +759,7 @@ class DrinkingEnv(AssistiveEnv):
             "r_jerky": Box(low=0.0, high=1.0, shape=(), dtype=float),
             "r_return_home": Box(low=0.0, high=1.0, shape=(), dtype=float),
             "r_action_smoothness": Box(low=0.0, high=0.1, shape=(), dtype=float),
+            "r_water_mouth_velocities": Box(low=0.0, high=1.0, shape=(), dtype=float),
         })
 
     @property
@@ -772,4 +777,5 @@ class DrinkingEnv(AssistiveEnv):
             "r_jerky": 0.25,
             "r_return_home": 0.5,
             "r_action_smoothness": 0.01,
+            "r_water_mouth_velocities": 1.0,
         }
